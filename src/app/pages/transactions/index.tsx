@@ -424,8 +424,9 @@ function TransactionItem({
                 <Calendar size={12} /> {transaction.date.split('-').reverse().join('/')}
               </span>
               {transaction.description && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1 break-all">
-                  <Tag size={12} /> <HighlightMatch text={transaction.description} match={searchTerm} />
+                <span className="text-xs text-muted-foreground flex items-center gap-1 overflow-hidden" title={transaction.description}>
+                  <Tag size={12} className="shrink-0" /> 
+                  <span className="truncate max-w-[150px] sm:max-w-[300px]"><HighlightMatch text={transaction.description} match={searchTerm} /></span>
                 </span>
               )}
             </div>

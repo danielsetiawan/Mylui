@@ -40,8 +40,9 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
   return (
     <AnimatePresence>
       {plan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
           <motion.div 
+            onClick={(e) => e.stopPropagation()}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}

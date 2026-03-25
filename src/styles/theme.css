@@ -1,21 +1,25 @@
 @custom-variant dark (&:is(.dark *));
 
+/*
+  jika ingin menganti warna fokus ke
+  - primary, background dan card aja
+*/
 :root {
   --font-size: 16px;
-  --background: hsl(0, 33%, 98%);
+  --background: #fcf8f8;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #3b82f6;
+  --primary: #059669;
   --primary-foreground: #ffffff;
-  --secondary: #eff6ff;
-  --secondary-foreground: #3b82f6;
+  --secondary: #ecfdf5;
+  --secondary-foreground: #059669;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  --accent: #dbeafe;
-  --accent-foreground: #3b82f6;
+  --accent: #d1fae5;
+  --accent-foreground: #059669;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
   --border: rgba(0, 0, 0, 0.1);
@@ -33,7 +37,7 @@
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #3b82f6;
+  --sidebar-primary: #059669;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -48,14 +52,14 @@
   --card-foreground: #f8fafc;
   --popover: #1e293b;
   --popover-foreground: #f8fafc;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --secondary: #334155;
-  --secondary-foreground: #f8fafc;
-  --muted: #334155;
+  --primary: #10b981;
+  --primary-foreground: #020617;
+  --secondary: #064e3b;
+  --secondary-foreground: #ecfdf5;
+  --muted: #1e293b;
   --muted-foreground: #94a3b8;
-  --accent: #334155;
-  --accent-foreground: #f8fafc;
+  --accent: #065f46;
+  --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: #334155;
@@ -70,7 +74,7 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: #1e293b;
   --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #3b82f6;
+  --sidebar-primary: #10b981;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #334155;
   --sidebar-accent-foreground: #f8fafc;
