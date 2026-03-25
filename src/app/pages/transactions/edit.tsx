@@ -3,6 +3,7 @@ import { Edit2, Link2, ListTree, X, Save, Trash2, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { Transaction, TransactionType } from '../../lib/types';
+import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface Props {
@@ -10,11 +11,12 @@ interface Props {
   onClose: () => void;
   onSuccess: () => void;
   onDeleteRequest: (id: string) => void;
-  incomeSources: Transaction[];
   formatCurrency: (val: number) => string;
 }
 
-export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteRequest, incomeSources, formatCurrency }: Props) {
+export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteRequest, formatCurrency }: Props) {
+  const { user } = useAuth();
+  
   const [editType, setEditType] = useState<TransactionType>('expense');
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('');
@@ -22,6 +24,10 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
   const [editDate, setEditDate] = useState('');
   const [editLinkedIncomeId, setEditLinkedIncomeId] = useState('');
   const [editDetails, setEditDetails] = useState<{ id?: string, text: string }[]>([]);
+
+  // Income Sources State
+  const [incomeMonth, setIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [localIncomeSources, setLocalIncomeSources] = useState<Transaction[]>([]);
 
   useEffect(() => {
     if (transaction) {
@@ -32,8 +38,32 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
       setEditDate(transaction.date);
       setEditLinkedIncomeId(transaction.linked_income_id || '');
       setEditDetails((transaction.transaction_details || []).map(d => ({ id: d.id, text: d.text })));
+      // Set initial income month to transaction date month
+      setIncomeMonth(transaction.date.substring(0, 7));
     }
   }, [transaction]);
+
+  useEffect(() => {
+    if (!user || editType !== 'expense' || !transaction) return;
+    
+    const fetchIncomes = async () => {
+      const [year, month] = incomeMonth.split('-');
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('type', 'income')
+        .gte('date', `${incomeMonth}-01`)
+        .lte('date', `${incomeMonth}-${lastDay}`)
+        .order('date', { ascending: false });
+        
+      if (data) setLocalIncomeSources(data as Transaction[]);
+    };
+    
+    fetchIncomes();
+  }, [incomeMonth, editType, user, transaction]);
 
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +174,11 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">Rp</span>
                       <input
-                        type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={editAmount} 
+                        onChange={(e) => setEditAmount(e.target.value.replace(/\D/g, ''))}
                         className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-black outline-none focus:ring-2 ring-primary/20"
                       />
                     </div>
@@ -158,17 +192,32 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     />
                   </div>
                   {editType === 'expense' && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <Link2 size={12} /> Link to Income
-                      </label>
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          <Link2 size={12} /> Link to Income
+                        </label>
+                        <select 
+                          value={incomeMonth} 
+                          onChange={(e) => setIncomeMonth(e.target.value)}
+                          className="bg-accent/50 border-none rounded-xl py-1.5 px-3 pr-8 text-xs font-bold outline-none focus:ring-2 ring-primary/20 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20fill%3D%22none%22%20stroke%3D%22%23717182%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.2em_1.2em] bg-[right_0.5rem_center] bg-no-repeat cursor-pointer"
+                        >
+                          {Array.from({ length: 12 }).map((_, i) => {
+                            const d = new Date();
+                            d.setMonth(d.getMonth() - i);
+                            const val = d.toISOString().substring(0, 7);
+                            const label = new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(d);
+                            return <option key={val} value={val}>{label}</option>;
+                          })}
+                        </select>
+                      </div>
                       <select
                         value={editLinkedIncomeId}
                         onChange={(e) => setEditLinkedIncomeId(e.target.value)}
                         className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
                       >
                         <option value="">Not Linked</option>
-                        {incomeSources.map(source => (
+                        {localIncomeSources.map(source => (
                           <option key={source.id} value={source.id}>
                             {source.category} ({formatCurrency(source.amount)})
                           </option>

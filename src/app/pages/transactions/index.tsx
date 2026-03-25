@@ -50,17 +50,17 @@ export function Transactions() {
     if (!user) return;
     try {
       let query = supabase.from('transactions').select('type, amount').eq('user_id', user.id);
-      
+
       if (filterMonthYear) {
         // Correct date range for the selected month
         const [year, month] = filterMonthYear.split('-').map(Number);
         const lastDay = new Date(year, month, 0).getDate();
         query = query.gte('date', `${filterMonthYear}-01`).lte('date', `${filterMonthYear}-${lastDay}`);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
-      
+
       const income = data.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0);
       const expense = data.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0);
       setStats({ income, expense, balance: income - expense });
@@ -143,8 +143,6 @@ export function Transactions() {
     }
   };
 
-  const incomeSources = useMemo(() => transactions.filter(t => t.type === 'income'), [transactions]);
-
   const formatCurrency = useCallback((val: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -193,13 +191,13 @@ export function Transactions() {
   const observerTarget = useCallback((node: HTMLDivElement | null) => {
     if (loading || loadingMore || !hasMore) return;
     if (observer.current) observer.current.disconnect();
-    
+
     observer.current = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
         fetchTransactions(true);
       }
     }, { rootMargin: '400px' });
-    
+
     if (node) observer.current.observe(node);
   }, [loading, loadingMore, hasMore, transactions.length, filterType, filterMonthYear, debouncedSearchTerm]);
 
@@ -227,20 +225,18 @@ export function Transactions() {
         </button>
       </header>
 
-      <TransactionAdd 
-        isOpen={isAdding} 
-        onClose={() => setIsAdding(false)} 
+      <TransactionAdd
+        isOpen={isAdding}
+        onClose={() => setIsAdding(false)}
         onSuccess={() => { setIsAdding(false); fetchTransactions(); fetchStats(); }}
-        incomeSources={incomeSources}
         formatCurrency={formatCurrency}
       />
 
-      <TransactionEdit 
+      <TransactionEdit
         transaction={editingTransaction}
         onClose={() => setEditingTransaction(null)}
         onSuccess={() => { setEditingTransaction(null); fetchTransactions(); fetchStats(); }}
         onDeleteRequest={handleDeleteRequest}
-        incomeSources={incomeSources}
         formatCurrency={formatCurrency}
       />
 
@@ -295,7 +291,7 @@ export function Transactions() {
           {(['income', 'expense'] as const).map(t => {
             const total = t === 'income' ? stats.income : stats.expense;
             return (
-              <div key={t} className={`p-2 sm:p-3 rounded-2xl border ${t === 'income' ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'} overflow-hidden`}>
+              <div key={t} className={`p-2 sm:p-3 rounded-2xl border ${t === 'income' ? 'bg-emerald-50 border-emerald-150' : 'bg-rose-50 border-rose-150'} overflow-hidden`}>
                 <p className={`text-[10px] font-bold uppercase tracking-wider truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
                 <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                   <span className="sm:hidden">{formatCompactCurrency(total)}</span>
@@ -378,9 +374,9 @@ function HighlightMatch({ text, match }: { text: string, match: string }) {
   const parts = text.split(new RegExp(`(${match})`, 'gi'));
   return (
     <>
-      {parts.map((part, i) => 
-        part.toLowerCase() === match.toLowerCase() 
-          ? <span key={i} className="bg-yellow-200 dark:bg-yellow-800/50 px-0.5 rounded-sm">{part}</span> 
+      {parts.map((part, i) =>
+        part.toLowerCase() === match.toLowerCase()
+          ? <span key={i} className="bg-yellow-200 dark:bg-yellow-800/50 px-0.5 rounded-sm">{part}</span>
           : part
       )}
     </>
@@ -449,16 +445,16 @@ function TransactionItem({
 
       {transaction.transaction_details && transaction.transaction_details.length > 0 && (
         <div className="mt-3 ml-12 sm:ml-16">
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
             className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 bg-accent/50 hover:bg-accent px-2 py-1 rounded-md transition-colors"
           >
             <ListTree size={12} /> {transaction.transaction_details.length} Details {showDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
-          
+
           <AnimatePresence>
             {showDetails && (
-              <motion.div 
+              <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
