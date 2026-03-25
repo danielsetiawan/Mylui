@@ -144,10 +144,10 @@ export function Layout() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-4 left-4 right-4 bg-card/90 backdrop-blur-md border border-border flex justify-around py-3 px-2 z-20 rounded-2xl shadow-xl">
-        <MobileNavItem to="/" icon={<LayoutDashboard size={20} />} label="Home" />
-        <MobileNavItem to="/transactions" icon={<ReceiptText size={20} />} label="Transactions" />
-        <MobileNavItem to="/planning" icon={<CalendarDays size={20} />} label="Planning" />
+      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-card/95 backdrop-blur-xl border border-border/50 flex justify-around py-2 px-2 z-50 rounded-full shadow-2xl">
+        <MobileNavItem to="/" icon={<LayoutDashboard size={22} />} label="Home" />
+        <MobileNavItem to="/transactions" icon={<ReceiptText size={22} />} label="Transactions" />
+        <MobileNavItem to="/planning" icon={<CalendarDays size={22} />} label="Planning" />
       </nav>
     </div>
   );
@@ -178,13 +178,19 @@ function MobileNavItem({ to, icon, label }: { to: string; icon: React.ReactNode;
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        `flex flex-col items-center gap-1 px-4 py-1.5 rounded-lg transition-colors ${
+        `flex flex-col items-center justify-center w-[72px] transition-all duration-300 ${
           isActive ? 'text-primary' : 'text-muted-foreground'
         }`
       }
     >
-      <div className="p-1 rounded-full">{icon}</div>
-      <span className="text-[10px] font-medium">{label}</span>
+      {({ isActive }) => (
+        <>
+          <div className={`p-1.5 mb-0.5 rounded-full transition-all duration-300 ${isActive ? 'bg-primary/10 scale-110' : 'scale-100 hover:text-foreground'}`}>
+            {icon}
+          </div>
+          <span className="text-[10px] font-extrabold tracking-wide">{label}</span>
+        </>
+      )}
     </NavLink>
   );
 }
