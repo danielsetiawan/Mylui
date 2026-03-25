@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -15,7 +15,7 @@ export function Layout() {
     const savedTheme = localStorage.getItem('theme');
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initialDark = savedTheme === 'dark' || (!savedTheme && systemDark);
-    
+
     setIsDark(initialDark);
     if (initialDark) {
       document.documentElement.classList.add('dark');
@@ -53,19 +53,36 @@ export function Layout() {
     <div className="flex flex-col h-screen bg-background text-foreground md:flex-row transition-colors">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-card border-r border-border p-6 relative">
-        <div className="flex items-center gap-2 mb-10 px-2 justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
+        <div className="flex items-center gap-2 mb-8 px-2 justify-between">
+          <div className="flex items-center gap-2 group cursor-pointer">
+            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg transition-transform group-hover:rotate-12">
               <Wallet size={24} />
             </div>
             <span className="text-xl font-bold tracking-tight">MyLui</span>
           </div>
-          <button 
-            onClick={toggleTheme} 
+          <button
+            onClick={toggleTheme}
             className="p-1.5 text-muted-foreground hover:bg-accent rounded-xl transition-colors"
           >
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+        </div>
+
+        {/* Desktop User Header Profile */}
+        <div className="mb-8 px-2">
+          <div className="bg-accent/30 rounded-2xl p-4 border border-border/50">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-black shadow-lg shadow-primary/20">
+                {initials}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1 text-primary">Owner</span>
+                <p className="text-sm font-black truncate">{displayName}</p>
+              </div>
+            </div>
+            <div className="h-px bg-border/50 w-full mb-3" />
+            <NavItem to="/settings" icon={<X size={0} className="hidden" />} label="Edit Profile" /> {/* Mocking navigation if needed */}
+          </div>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -74,64 +91,45 @@ export function Layout() {
           <NavItem to="/planning" icon={<CalendarDays size={20} />} label="Planning" />
         </nav>
 
-        {/* User Info + Logout */}
-        <div className="pt-6 border-t border-border relative">
+        {/* Sidebar Footer Logout only */}
+        <div className="pt-6 border-t border-border mt-auto">
           <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-accent transition-colors"
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors font-bold"
           >
-            <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-black shrink-0">
-              {initials}
-            </div>
-            <div className="flex flex-col flex-1 text-left min-w-0">
-              <span className="text-sm font-semibold truncate">{displayName}</span>
-              <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
-            </div>
-            <ChevronDown size={16} className={`text-muted-foreground transition-transform shrink-0 ${showUserMenu ? 'rotate-180' : ''}`} />
+            <LogOut size={20} />
+            <span>Sign Out</span>
           </button>
-
-          <AnimatePresence>
-            {showUserMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="absolute bottom-full left-0 right-0 mb-2 bg-card border border-border rounded-2xl shadow-lg overflow-hidden"
-              >
-                <button
-                  onClick={handleSignOut}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold"
-                >
-                  <LogOut size={16} />
-                  Logout
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </aside>
 
-      {/* Mobile Header */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary text-primary-foreground p-1 rounded-md">
-            <Wallet size={18} />
+      {/* Mobile Header with Profile Greeting */}
+      <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-40">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-lg shadow-primary/20">
+              <Wallet size={18} />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-base leading-none tracking-tight">MyLui</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-normal">Hello, {profile?.full_name?.split(' ')[0] || displayName}</span>
+            </div>
           </div>
-          <span className="font-bold">MyLui</span>
         </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={toggleTheme}
-            className="size-8 rounded-full bg-accent flex items-center justify-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="size-9 rounded-full bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <button
             onClick={handleSignOut}
-            className="size-8 rounded-full bg-accent flex items-center justify-center text-xs text-muted-foreground hover:text-rose-600 hover:bg-rose-50 transition-colors"
+            className="size-9 rounded-full bg-accent flex items-center justify-center text-muted-foreground hover:text-rose-600 transition-colors"
             title="Logout"
           >
-            <LogOut size={16} />
+            <LogOut size={18} />
           </button>
         </div>
       </header>
@@ -159,10 +157,9 @@ function NavItem({ to, icon, label }: { to: string; icon: React.ReactNode; label
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-          isActive
-            ? 'bg-primary text-primary-foreground font-medium'
-            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${isActive
+          ? 'bg-primary text-primary-foreground font-medium'
+          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         }`
       }
     >
@@ -178,8 +175,7 @@ function MobileNavItem({ to, icon, label }: { to: string; icon: React.ReactNode;
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        `flex flex-col items-center justify-center w-[72px] transition-all duration-300 ${
-          isActive ? 'text-primary' : 'text-muted-foreground'
+        `flex flex-col items-center justify-center w-[72px] transition-all duration-300 ${isActive ? 'text-primary' : 'text-muted-foreground'
         }`
       }
     >
