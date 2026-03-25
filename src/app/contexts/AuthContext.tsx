@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,14 +33,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Subscribe ke perubahan auth state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const newUser = session?.user ?? null;
+      
+      setUser(prevUser => {
+        // Only update if User ID actually changed or existence changed
+        if (prevUser?.id === newUser?.id) return prevUser;
+        return newUser;
+      });
+
+      setSession(prevSession => {
+        if (prevSession?.access_token === session?.access_token) return prevSession;
+        return session;
+      });
+
+      if (newUser && (!profile || profile.id !== newUser.id)) {
+        fetchProfile(newUser.id);
+      } else if (!newUser) {
         setProfile(null);
       }
+      
       setLoading(false);
     });
 
@@ -53,6 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single();
     if (data) setProfile(data as Profile);
+  };
+
+  const refreshProfile = async () => {
+    if (user) await fetchProfile(user.id);
   };
 
   const signIn = async (email: string, password: string) => {
@@ -91,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, signInWithGoogle }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, signInWithGoogle, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

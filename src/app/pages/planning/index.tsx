@@ -19,6 +19,12 @@ export function Planning() {
   const [planToDelete, setPlanToDelete] = useState<BudgetPlan | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const ITEMS_PER_PAGE = 10;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const currentDate = new Date();
@@ -31,17 +37,25 @@ export function Planning() {
   }, [searchTerm]);
 
   useEffect(() => {
-    if (user) fetchPlans();
+    if (user) {
+      setPage(0);
+      setPlans([]);
+      fetchPlans(0);
+    }
   }, [user, filterMonthYear, debouncedSearchTerm]);
 
-  const fetchPlans = async () => {
+  const fetchPlans = async (pageNum: number) => {
     if (!user) return;
     try {
+      if (pageNum === 0) setLoading(true);
+      else setIsFetchingMore(true);
+
       let query = supabase
         .from('budget_plans')
         .select('*, budget_plan_items(*)')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1);
 
       if (filterMonthYear) {
         const [year, month] = filterMonthYear.split('-').map(Number);
@@ -55,13 +69,28 @@ export function Planning() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setPlans(data as BudgetPlan[]);
+
+      const newPlans = data as BudgetPlan[];
+      if (pageNum === 0) {
+        setPlans(newPlans);
+      } else {
+        setPlans(prev => [...prev, ...newPlans]);
+      }
+      
+      setHasMore(newPlans.length === ITEMS_PER_PAGE);
     } catch (error: any) {
       console.error('Error fetching plans:', error);
       toast.error('Failed to load plans');
     } finally {
       setLoading(false);
+      setIsFetchingMore(false);
     }
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchPlans(nextPage);
   };
 
   const handleDeletePlan = async () => {
@@ -231,10 +260,22 @@ export function Planning() {
         )}
       </div>
 
+      {hasMore && plans.length > 0 && (
+        <div className="flex justify-center pt-8">
+          <button 
+            onClick={handleLoadMore}
+            disabled={isFetchingMore}
+            className="bg-accent/50 hover:bg-accent border border-border px-8 py-3 rounded-2xl font-bold text-sm transition-all disabled:opacity-50"
+          >
+            {isFetchingMore ? 'Loading more...' : 'Load More Plans'}
+          </button>
+        </div>
+      )}
+
       <PlanningAdd 
         isOpen={isCreating}
         onClose={() => setIsCreating(false)}
-        onSuccess={() => { setIsCreating(false); fetchPlans(); }}
+        onSuccess={() => { setIsCreating(false); setPage(0); fetchPlans(0); }}
         formatCurrency={formatCurrency}
       />
 
@@ -256,7 +297,7 @@ export function Planning() {
       <PlanningEdit 
         plan={isEditing ? selectedPlan : null}
         onClose={() => { setIsEditing(false); setSelectedPlan(null); }}
-        onSuccess={() => { setIsEditing(false); setSelectedPlan(null); fetchPlans(); }}
+        onSuccess={() => { setIsEditing(false); setSelectedPlan(null); setPage(0); fetchPlans(0); }}
         formatCurrency={formatCurrency}
       />
 

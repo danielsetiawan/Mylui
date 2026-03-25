@@ -4,6 +4,7 @@ import { AuthGuard } from "./components/AuthGuard";
 import { Dashboard } from "./pages/Dashboard";
 import { Transactions } from "./pages/transactions";
 import { Planning } from "./pages/planning";
+import { Notes } from "./pages/Notes";
 import { Login } from "./pages/Login";
 
 export const router = createBrowserRouter([
@@ -29,6 +30,10 @@ export const router = createBrowserRouter([
           {
             path: "planning",
             Component: Planning,
+          },
+          {
+            path: "notes",
+            Component: Notes,
           },
         ],
       },

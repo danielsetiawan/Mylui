@@ -40,7 +40,8 @@ export function Dashboard() {
             .from('transactions')
             .select('*')
             .eq('user_id', user.id)
-            .order('date', { ascending: false }),
+            .order('date', { ascending: false })
+            .limit(100),
           supabase
             .from('budget_plans')
             .select('*')

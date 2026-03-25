@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
 export function Layout() {
-  const { profile, user, signOut } = useAuth();
+  const { profile, user, signOut, refreshProfile } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [newFullName, setNewFullName] = useState(profile?.full_name || '');
 
   useEffect(() => {
     // Initialize theme
@@ -39,6 +42,24 @@ export function Layout() {
   const handleSignOut = async () => {
     await signOut();
     toast.success('Logged out successfully');
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: newFullName })
+        .eq('id', user?.id);
+      
+      if (error) throw error;
+      
+      toast.success('Profile updated!');
+      setIsEditingProfile(false);
+      if (refreshProfile) refreshProfile();
+    } catch (error: any) {
+      toast.error('Failed to update: ' + error.message);
+    }
   };
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
@@ -81,7 +102,13 @@ export function Layout() {
               </div>
             </div>
             <div className="h-px bg-border/50 w-full mb-3" />
-            <NavItem to="/settings" icon={<X size={0} className="hidden" />} label="Edit Profile" /> {/* Mocking navigation if needed */}
+            <button 
+              onClick={() => { setIsEditingProfile(true); setNewFullName(profile?.full_name || ''); }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+            >
+              <User size={14} />
+              Edit Profile
+            </button>
           </div>
         </div>
 
@@ -89,6 +116,7 @@ export function Layout() {
           <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
           <NavItem to="/transactions" icon={<ReceiptText size={20} />} label="Transactions" />
           <NavItem to="/planning" icon={<CalendarDays size={20} />} label="Planning" />
+          <NavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
         </nav>
 
         {/* Sidebar Footer Logout only */}
@@ -119,6 +147,13 @@ export function Layout() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => { setIsEditingProfile(true); setNewFullName(profile?.full_name || ''); }}
+            className="size-9 rounded-full bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            title="Edit Profile"
+          >
+            <User size={18} />
+          </button>
+          <button
             onClick={toggleTheme}
             className="size-9 rounded-full bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -142,11 +177,50 @@ export function Layout() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-card/95 backdrop-blur-xl border border-border/50 flex justify-around py-2 px-2 z-50 rounded-full shadow-2xl">
-        <MobileNavItem to="/" icon={<LayoutDashboard size={22} />} label="Home" />
-        <MobileNavItem to="/transactions" icon={<ReceiptText size={22} />} label="Transactions" />
-        <MobileNavItem to="/planning" icon={<CalendarDays size={22} />} label="Planning" />
+      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-card/95 backdrop-blur-xl border border-border/50 flex justify-around py-2 px-1 z-50 rounded-full shadow-2xl overflow-hidden">
+        <MobileNavItem to="/" icon={<LayoutDashboard size={20} />} label="Home" />
+        <MobileNavItem to="/transactions" icon={<ReceiptText size={20} />} label="Trans" />
+        <MobileNavItem to="/planning" icon={<CalendarDays size={20} />} label="Plans" />
+        <MobileNavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
       </nav>
+
+      {/* Edit Profile Modal */}
+      <AnimatePresence>
+        {isEditingProfile && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsEditingProfile(false)}>
+            <motion.div 
+              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-card border border-border rounded-3xl w-full max-w-md p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-black">Edit Profile</h3>
+                <button onClick={() => setIsEditingProfile(false)} className="p-2 hover:bg-accent rounded-full">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleUpdateProfile} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Full Name</label>
+                  <input 
+                    type="text" 
+                    value={newFullName} 
+                    onChange={(e) => setNewFullName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                    autoFocus
+                  />
+                </div>
+                <button type="submit" className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-black text-lg shadow-lg shadow-primary/20">
+                  Save Changes
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

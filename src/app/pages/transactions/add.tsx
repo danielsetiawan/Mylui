@@ -10,7 +10,6 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  onSuccess: () => void;
   formatCurrency: (val: number) => string;
 }
 
@@ -136,8 +135,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     <input
                       type="text"
                       inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={amount}
+                      value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
                       placeholder="0"
                       className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-black text-xl outline-none focus:ring-2 ring-primary/20"
@@ -195,13 +193,18 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date</label>
-                  <input
-                    type="date"
-                    value={date}
-                    onClick={(e) => { (e.target as any).showPicker && (e.target as any).showPicker(); }}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
-                  />
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-accent/50 rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none peer-focus:ring-2 ring-primary/20">
+                      {date.split('-').reverse().join('/')}
+                    </div>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      onClick={(e) => { (e.target as any).showPicker && (e.target as any).showPicker(); }}
+                      className="w-full bg-transparent border-none rounded-2xl py-3 px-4 font-bold outline-none opacity-0 cursor-pointer h-[52px]"
+                    />
+                  </div>
                 </div>
 
                   <div className="space-y-2">

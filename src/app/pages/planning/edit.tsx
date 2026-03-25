@@ -129,10 +129,12 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
                       </div>
                       <div className="w-36">
                         <input 
-                          type="number" value={item.estimate || ''}
-                          onChange={(e) => updateItem(index, 'estimate', e.target.value)}
-                          placeholder="Rp 0" min="0"
-                          className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-black outline-none"
+                          type="text"
+                          inputMode="numeric"
+                          value={item.estimate?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') || ''}
+                          onChange={(e) => updateItem(index, 'estimate', e.target.value.replace(/\D/g, ''))}
+                          placeholder="0"
+                          className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-black outline-none pl-3"
                         />
                       </div>
                       <button type="button" onClick={() => removeItem(index)} className="p-2 text-muted-foreground hover:text-rose-600 transition-colors">
