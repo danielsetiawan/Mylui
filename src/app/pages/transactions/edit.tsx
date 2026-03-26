@@ -109,7 +109,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
   };
 
   const handleAddDetail = () => {
-    setEditDetails([...editDetails, { name: '', amount: '' }]);
+    setEditDetails([{ name: '', amount: '' }, ...editDetails]);
   };
 
   const handleRemoveDetail = async (index: number) => {
@@ -276,6 +276,13 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                   </button>
                 </div>
 
+                <div className="bg-accent/40 p-3 rounded-xl flex items-center justify-between border border-border">
+                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Total Rincian</span>
+                  <span className="font-black text-primary">
+                    Rp {editDetails.reduce((acc, d) => acc + (d.amount || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                  </span>
+                </div>
+
                 {editDetails.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">No details. You can split expense notes here.</p>
                 ) : (
@@ -306,13 +313,6 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     ))}
                   </div>
                 )}
-                
-                <div className="bg-accent/40 p-3 rounded-xl flex items-center justify-between border border-border mt-3">
-                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Total Rincian</span>
-                  <span className="font-black text-primary">
-                    Rp {editDetails.reduce((acc, d) => acc + (d.amount || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                  </span>
-                </div>
                 
                 <div className="flex justify-end pt-2">
                   <button onClick={saveDetailsToDb} type="button" className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-emerald-200 font-bold transition-colors">
