@@ -15,12 +15,14 @@ interface Props {
 export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [nominalBudget, setNominalBudget] = useState('');
   const [newItems, setNewItems] = useState<Partial<BudgetPlanItem>[]>([]);
 
   useEffect(() => {
     if (plan) {
       setTitle(plan.title);
       setDescription(plan.description);
+      setNominalBudget(plan.total_budget ? plan.total_budget.toString() : '');
       setNewItems(plan.budget_plan_items || []);
     }
   }, [plan]);
@@ -32,13 +34,15 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
       return;
     }
 
+    const explicitBudget = parseFloat(nominalBudget.replace(/\D/g, '')) || 0;
     const validItems = newItems.filter(item => item.name && item.estimate);
-    const totalBudget = validItems.reduce((acc, item) => acc + (parseFloat(item.estimate!.toString()) || 0), 0);
+    const calculatedBudget = validItems.reduce((acc, item) => acc + (parseFloat(item.estimate!.toString()) || 0), 0);
+    const finalBudget = explicitBudget > 0 ? explicitBudget : calculatedBudget;
 
     try {
       const { error: planError } = await supabase
         .from('budget_plans')
-        .update({ title, description, total_budget: totalBudget })
+        .update({ title, description, total_budget: finalBudget })
         .eq('id', plan.id);
       if (planError) throw planError;
 
@@ -97,6 +101,20 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
                   />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Total Budget Plan</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">Rp</span>
+                    <input 
+                      type="text" 
+                      inputMode="numeric"
+                      value={nominalBudget.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} 
+                      onChange={(e) => setNominalBudget(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Total nominal budget (otomatis dari item jika kosong)"
+                      className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Short Description</label>
                   <input 
                     type="text" value={description} onChange={(e) => setDescription(e.target.value)}
@@ -149,7 +167,11 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-sm font-bold text-muted-foreground">Total Budget:</span>
                   <span className="text-2xl font-black text-primary">
-                    {formatCurrency(newItems.reduce((acc, item) => acc + (parseFloat(item.estimate?.toString() || '0') || 0), 0))}
+                    {formatCurrency(
+                      nominalBudget 
+                        ? parseFloat(nominalBudget.replace(/\D/g, ''))
+                        : newItems.reduce((acc, item) => acc + (parseFloat(item.estimate?.toString() || '0') || 0), 0)
+                    )}
                   </span>
                 </div>
                 <button type="submit" className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-black text-lg transition-all hover:bg-primary/90">

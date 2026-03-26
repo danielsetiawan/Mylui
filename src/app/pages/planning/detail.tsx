@@ -22,6 +22,11 @@ const statusConfig = {
 };
 
 export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, onStatusChange, formatCurrency, formatCompactCurrency }: Props) {
+  const items = plan?.budget_plan_items || [];
+  const totalEstimate = items.reduce((sum, item) => sum + item.estimate, 0);
+  const sisaValue = (plan?.total_budget ?? 0) - totalEstimate;
+  const progress = plan && plan.total_budget > 0 ? (totalEstimate / plan.total_budget) * 100 : 0;
+  
   const handleUpdateStatus = async (status: BudgetPlan['status']) => {
     if (!plan) return;
     try {
@@ -46,7 +51,7 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
-            className="bg-card border border-border rounded-3xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col"
+            className="bg-card w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col sm:rounded-3xl border border-border"
           >
             <div className="p-6 border-b border-border flex justify-between items-start">
               <div>
@@ -58,21 +63,41 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
               </button>
             </div>
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                <div className="p-3 sm:p-4 bg-accent/50 rounded-xl sm:rounded-2xl overflow-hidden border border-border/50">
-                  <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase mb-1 truncate">Total</p>
-                  <div title={formatCurrency(plan.total_budget)} className="text-xs sm:text-sm font-black text-primary truncate">
-                    <span className="sm:hidden">{formatCompactCurrency(plan.total_budget)}</span>
-                    <span className="hidden sm:inline">{formatCurrency(plan.total_budget)}</span>
+              {/* Budget Progress (Matching Mobile) */}
+              <div className="bg-accent/40 rounded-2xl p-4 sm:p-5 border border-border/50">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-bold text-muted-foreground">
+                    {(plan.budget_plan_items || []).length} item • Terpakai
+                  </span>
+                  <span className={`text-xs font-black ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
+                    {Math.round(progress)}%
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-primary/10 rounded-full mb-4 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${sisaValue < 0 ? 'bg-rose-500' : 'bg-primary'}`}
+                    style={{ width: `${Math.min(progress, 100)}%` }}
+                  />
+                </div>
+                
+                <div className="flex justify-between items-end">
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Estimasi</p>
+                    <div title={formatCurrency(totalEstimate)} className="text-sm sm:text-lg font-black text-foreground leading-none">
+                      {formatCurrency(totalEstimate)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sisa Budget</p>
+                    <div title={formatCurrency(sisaValue)} className={`text-sm sm:text-lg font-black leading-none ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
+                      {sisaValue < 0 ? `-${formatCurrency(Math.abs(sisaValue))}` : formatCurrency(sisaValue)}
+                    </div>
                   </div>
                 </div>
-                <div className="p-3 sm:p-4 bg-accent/50 rounded-xl sm:rounded-2xl overflow-hidden border border-border/50">
-                  <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase mb-1 truncate">Status</p>
-                  <p className="text-[10px] sm:text-sm font-black truncate">{statusConfig[plan.status].label}</p>
-                </div>
-                <div className="p-3 sm:p-4 bg-accent/50 rounded-xl sm:rounded-2xl overflow-hidden border border-border/50">
-                  <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase mb-1 truncate">Items</p>
-                  <p className="text-xs sm:text-sm font-black truncate">{(plan.budget_plan_items || []).length}</p>
+                {/* Visual indicator for Target Budget to remind user */}
+                <div className="mt-3 pt-3 border-t border-border/50 flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Target Budget</span>
+                  <span className="text-xs font-black text-muted-foreground">{formatCurrency(plan.total_budget)}</span>
                 </div>
               </div>
 

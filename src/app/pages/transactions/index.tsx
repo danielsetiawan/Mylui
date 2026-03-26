@@ -463,9 +463,14 @@ function TransactionItem({
               >
                 <div className="space-y-1.5 border-l-2 border-border pl-3 mt-2">
                   {transaction.transaction_details.map(det => (
-                    <div key={det.id} className="text-[11px] font-medium text-muted-foreground flex items-center gap-2 break-all">
-                      <span className="size-1 bg-border rounded-full shrink-0"></span>
-                      <HighlightMatch text={det.text} match={searchTerm} />
+                    <div key={det.id} className="text-[11px] font-medium text-muted-foreground flex items-center justify-between gap-2 break-all">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="size-1 bg-border rounded-full shrink-0"></span>
+                        <HighlightMatch text={det.name || det.text || '—'} match={searchTerm} />
+                      </div>
+                      {det.amount != null && (
+                        <span className="font-bold text-foreground whitespace-nowrap">{formatCurrency(Number(det.amount) || 0)}</span>
+                      )}
                     </div>
                   ))}
                 </div>

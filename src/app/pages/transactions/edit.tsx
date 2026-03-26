@@ -23,7 +23,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
   const [editDescription, setEditDescription] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editLinkedIncomeId, setEditLinkedIncomeId] = useState('');
-  const [editDetails, setEditDetails] = useState<{ id?: string, text: string }[]>([]);
+  const [editDetails, setEditDetails] = useState<{ id?: string, name: string, amount: number | '' }[]>([]);
 
   // Income Sources State
   const [incomeMonth, setIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
@@ -37,7 +37,11 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
       setEditDescription(transaction.description || '');
       setEditDate(transaction.date);
       setEditLinkedIncomeId(transaction.linked_income_id || '');
-      setEditDetails((transaction.transaction_details || []).map(d => ({ id: d.id, text: d.text })));
+      setEditDetails((transaction.transaction_details || []).map(d => ({ 
+        id: d.id, 
+        name: d.name || d?.text || '', 
+        amount: d.amount || '' 
+      })));
       // Set initial income month to transaction date month
       setIncomeMonth(transaction.date.substring(0, 7));
     }
@@ -89,11 +93,11 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
 
       // 2. Simpan rincian juga bersamaan dengan simpan utama
       for (const d of editDetails) {
-        if (!d.text.trim()) continue;
+        if (!d.name.trim() || d.amount === '') continue;
         if (d.id) {
-          await supabase.from('transaction_details').update({ text: d.text }).eq('id', d.id);
+          await supabase.from('transaction_details').update({ name: d.name, amount: d.amount }).eq('id', d.id);
         } else {
-          await supabase.from('transaction_details').insert({ transaction_id: transaction.id, text: d.text });
+          await supabase.from('transaction_details').insert({ transaction_id: transaction.id, name: d.name, amount: d.amount });
         }
       }
 
@@ -105,7 +109,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
   };
 
   const handleAddDetail = () => {
-    setEditDetails([{ text: '' }, ...editDetails]);
+    setEditDetails([...editDetails, { name: '', amount: '' }]);
   };
 
   const handleRemoveDetail = async (index: number) => {
@@ -123,9 +127,15 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
     setEditDetails(newArr);
   };
 
-  const handleUpdateDetail = async (index: number, val: string) => {
+  const handleUpdateDetailName = (index: number, val: string) => {
     const newArr = [...editDetails];
-    newArr[index].text = val;
+    newArr[index].name = val;
+    setEditDetails(newArr);
+  };
+
+  const handleUpdateDetailAmount = (index: number, val: string) => {
+    const newArr = [...editDetails];
+    newArr[index].amount = val ? parseInt(val.replace(/\D/g, ''), 10) : '';
     setEditDetails(newArr);
   };
 
@@ -133,11 +143,11 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
     if (!transaction) return;
     try {
       for (const d of editDetails) {
-        if (!d.text.trim()) continue;
+        if (!d.name.trim() || d.amount === '') continue;
         if (d.id) {
-          await supabase.from('transaction_details').update({ text: d.text }).eq('id', d.id);
+          await supabase.from('transaction_details').update({ name: d.name, amount: d.amount }).eq('id', d.id);
         } else {
-          await supabase.from('transaction_details').insert({ transaction_id: transaction.id, text: d.text });
+          await supabase.from('transaction_details').insert({ transaction_id: transaction.id, name: d.name, amount: d.amount });
         }
       }
       toast.success('Details saved');
@@ -271,23 +281,44 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                 ) : (
                   <div className="space-y-2">
                     {editDetails.map((det, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-accent/20 p-2 rounded-xl group">
                         <input
-                          type="text" value={det.text}
-                          onChange={(e) => handleUpdateDetail(index, e.target.value)}
-                          placeholder="Misal: 2k parkir, 50k bensin..."
-                          className="flex-1 bg-background border border-border rounded-xl py-2 px-3 text-sm font-medium outline-none focus:border-primary"
+                          type="text" value={det.name}
+                          onChange={(e) => handleUpdateDetailName(index, e.target.value)}
+                          placeholder="Keterangan (mis. Bensin)"
+                          className="flex-[3] bg-background border border-border rounded-lg py-2.5 px-3 text-sm font-semibold outline-none focus:border-primary shrink-0"
                         />
-                        <button onClick={() => handleRemoveDetail(index)} type="button" className="text-muted-foreground hover:text-rose-500 p-2">
-                          <X size={16} />
+                        <div className="flex-1 relative flex items-center min-w-[120px]">
+                           <span className="absolute left-3 text-xs font-black text-muted-foreground">Rp</span>
+                           <input
+                            type="text" 
+                            inputMode="numeric"
+                            value={det.amount ? det.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+                            onChange={(e) => handleUpdateDetailAmount(index, e.target.value)}
+                            placeholder="0"
+                            className="w-full bg-background border border-border rounded-lg py-2.5 pl-8 pr-3 text-sm font-black outline-none focus:border-primary text-foreground"
+                          />
+                        </div>
+                        <button onClick={() => handleRemoveDetail(index)} type="button" className="text-muted-foreground hover:text-rose-500 p-2 sm:p-1 self-end sm:self-auto flex items-center gap-1 sm:gap-0">
+                          <X size={16} /> <span className="sm:hidden text-xs font-bold">Hapus</span>
                         </button>
                       </div>
                     ))}
-                    <button onClick={saveDetailsToDb} type="button" className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-emerald-200 mt-2 font-bold transition-colors">
-                      <Save size={12} /> Save Details Only
-                    </button>
                   </div>
                 )}
+                
+                <div className="bg-accent/40 p-3 rounded-xl flex items-center justify-between border border-border mt-3">
+                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Total Rincian</span>
+                  <span className="font-black text-primary">
+                    Rp {editDetails.reduce((acc, d) => acc + (d.amount || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                  </span>
+                </div>
+                
+                <div className="flex justify-end pt-2">
+                  <button onClick={saveDetailsToDb} type="button" className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-emerald-200 font-bold transition-colors">
+                    <Save size={12} /> Save Details Only
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -222,6 +222,10 @@ export function Planning() {
         ) : (
           plans.map((plan) => {
             const status = statusConfig[plan.status];
+            const items = plan.budget_plan_items || [];
+            const totalEstimate = items.reduce((sum, item) => sum + item.estimate, 0);
+            const sisaValue = plan.total_budget - totalEstimate;
+            const progress = plan.total_budget > 0 ? Math.min(totalEstimate / plan.total_budget, 1) * 100 : 0;
             return (
               <div 
                 key={plan.id}
@@ -237,21 +241,45 @@ export function Planning() {
                       {status.icon} <span className="hidden sm:inline">{status.label}</span>
                     </div>
                   </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1 mb-2 bg-accent/20 py-0.5 px-2 rounded border border-border/30 break-all">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1 mb-2">
                     <HighlightMatch text={plan.description || 'No description'} match={debouncedSearchTerm} />
                   </p>
                   
-                  <div className="flex items-end justify-between border-t border-border pt-2 mt-auto">
-                    <div className="min-w-0 pr-2">
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0">Total</p>
+                  {/* Progress Bar */}
+                  <div className="w-full h-1.5 bg-primary/10 rounded-full mb-3 overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  
+                  <div className="flex items-end justify-between border-t border-border pt-3 mt-auto">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0">Budget</p>
                       <div title={formatCurrency(plan.total_budget)} className="text-sm font-black text-primary truncate leading-none">
                         <span className="sm:hidden">{formatCompactCurrency(plan.total_budget)}</span>
                         <span className="hidden sm:inline">{formatCurrency(plan.total_budget)}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium shrink-0">
-                      <span>{(plan.budget_plan_items || []).length} items</span>
+                    {/* Terpakai */}
+                    <div className="flex-1 min-w-0 text-center px-1">
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-center">Terpakai</p>
+                      <div title={formatCurrency(totalEstimate)} className="text-sm font-black text-foreground truncate leading-none text-center">
+                        <span className="sm:hidden">{formatCompactCurrency(totalEstimate)}</span>
+                        <span className="hidden sm:inline">{formatCurrency(totalEstimate)}</span>
+                      </div>
                     </div>
+                    {/* Sisa */}
+                    <div className="flex-1 min-w-0 text-right pl-2">
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-right">Sisa</p>
+                      <div title={formatCurrency(sisaValue)} className={`text-sm font-black truncate leading-none text-right ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
+                        <span className="sm:hidden">{formatCompactCurrency(sisaValue)}</span>
+                        <span className="hidden sm:inline">{formatCurrency(sisaValue)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-muted-foreground font-medium shrink-0">
+                    <span>{(plan.budget_plan_items || []).length} item rincian</span>
                   </div>
                 </div>
               </div>

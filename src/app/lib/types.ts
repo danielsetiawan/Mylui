@@ -3,7 +3,9 @@ export type TransactionType = 'income' | 'expense';
 export interface TransactionDetail {
   id: string;
   transaction_id: string;
-  text: string;
+  name: string;
+  amount: number;
+  text?: string;
 }
 
 export interface Transaction {
