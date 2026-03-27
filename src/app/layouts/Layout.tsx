@@ -76,9 +76,7 @@ export function Layout() {
       <aside className="hidden md:flex flex-col w-64 bg-card border-r border-border p-6 relative">
         <div className="flex items-center gap-2 mb-8 px-2 justify-between">
           <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg transition-transform group-hover:rotate-12">
-              <Wallet size={24} />
-            </div>
+            <img src="/logo.png" alt="MyLui Logo" className="w-8 h-8 rounded-lg shadow-sm transition-transform group-hover:scale-110" />
             <span className="text-xl font-bold tracking-tight">MyLui</span>
           </div>
           <button
@@ -135,9 +133,7 @@ export function Layout() {
       <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-lg shadow-primary/20">
-              <Wallet size={18} />
-            </div>
+            <img src="/logo.png" alt="MyLui Logo" className="w-7 h-7 rounded shadow-sm" />
             <div className="flex flex-col">
               <span className="font-bold text-base leading-none tracking-tight">MyLui</span>
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-normal">Hello, {profile?.full_name?.split(' ')[0] || displayName}</span>

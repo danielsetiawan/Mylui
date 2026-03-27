@@ -73,11 +73,8 @@ export function Login() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md relative z-10"
       >
-        {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="bg-primary text-primary-foreground p-3 rounded-2xl shadow-lg shadow-primary/20">
-            <Wallet size={32} />
-          </div>
+          <img src="/logo.png" alt="MyLui Logo" className="w-16 h-16 rounded-2xl shadow-lg shadow-primary/20" />
           <div className="text-center">
             <h1 className="text-3xl font-black tracking-tight">MyLui</h1>
             <p className="text-sm text-muted-foreground mt-1">Sistem Pencatatan & Perencanaan Budget</p>
