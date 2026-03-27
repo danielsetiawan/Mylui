@@ -289,12 +289,6 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                   <div className="space-y-2">
                     {editDetails.map((det, index) => (
                       <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-accent/20 p-2 rounded-xl group">
-                        <input
-                          type="text" value={det.name}
-                          onChange={(e) => handleUpdateDetailName(index, e.target.value)}
-                          placeholder="Keterangan (mis. Bensin)"
-                          className="flex-[3] bg-background border border-border rounded-lg py-2.5 px-3 text-sm font-semibold outline-none focus:border-primary shrink-0"
-                        />
                         <div className="flex-1 relative flex items-center min-w-[120px]">
                            <span className="absolute left-3 text-xs font-black text-muted-foreground">Rp</span>
                            <input
@@ -306,6 +300,12 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                             className="w-full bg-background border border-border rounded-lg py-2.5 pl-8 pr-3 text-sm font-black outline-none focus:border-primary text-foreground"
                           />
                         </div>
+                        <input
+                          type="text" value={det.name}
+                          onChange={(e) => handleUpdateDetailName(index, e.target.value)}
+                          placeholder="Keterangan (mis. Bensin)"
+                          className="flex-[3] bg-background border border-border rounded-lg py-2.5 px-3 text-sm font-semibold outline-none focus:border-primary shrink-0"
+                        />
                         <button onClick={() => handleRemoveDetail(index)} type="button" className="text-muted-foreground hover:text-rose-500 p-2 sm:p-1 self-end sm:self-auto flex items-center gap-1 sm:gap-0">
                           <X size={16} /> <span className="sm:hidden text-xs font-bold">Hapus</span>
                         </button>
