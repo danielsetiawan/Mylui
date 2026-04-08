@@ -112,7 +112,7 @@ export function Layout() {
 
         <nav className="flex-1 space-y-2">
           <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
-          <NavItem to="/transactions" icon={<ReceiptText size={20} />} label="Transactions" />
+          <NavItem to="/transactions" icon={<ReceiptText size={20} />} label="Activity" />
           <NavItem to="/planning" icon={<CalendarDays size={20} />} label="Planning" />
           <NavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
         </nav>

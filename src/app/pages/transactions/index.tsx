@@ -212,7 +212,7 @@ export function Transactions() {
     >
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Transactions</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">Activity</h1>
           <p className="text-muted-foreground">Manage your income and expenses.</p>
         </div>
         <button
@@ -245,7 +245,7 @@ export function Transactions() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
           <input
             type="text"
-            placeholder="Search transactions..."
+            placeholder="Search activity..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-card border border-border rounded-2xl py-3 pl-11 pr-10 font-bold outline-none focus:ring-2 ring-primary/20 transition-all"

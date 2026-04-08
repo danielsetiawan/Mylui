@@ -6,6 +6,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Transaction, TransactionType } from '../../lib/types';
 import { toast } from 'sonner';
 
+import { useMonthRange } from '../../contexts/MonthRangeContext';
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +17,7 @@ interface Props {
 
 export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: Props) {
   const { user } = useAuth();
+  const { monthOptions } = useMonthRange();
   
   // Local state
   const [type, setType] = useState<TransactionType>('expense');
@@ -32,8 +35,10 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
     if (!user || type !== 'expense' || !isOpen) return;
     
     const fetchIncomes = async () => {
-      const [year, month] = incomeMonth.split('-');
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const parts = incomeMonth.split('-');
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      const lastDay = new Date(year, month, 0).getDate();
       
       const { data } = await supabase
         .from('transactions')
@@ -165,13 +170,9 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                          onChange={(e) => setIncomeMonth(e.target.value)}
                          className="bg-accent/50 border-none rounded-xl py-1.5 px-3 pr-8 text-xs font-bold outline-none focus:ring-2 ring-primary/20 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20fill%3D%22none%22%20stroke%3D%22%23717182%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.2em_1.2em] bg-[right_0.5rem_center] bg-no-repeat cursor-pointer"
                        >
-                         {Array.from({ length: 12 }).map((_, i) => {
-                           const d = new Date();
-                           d.setMonth(d.getMonth() - i);
-                           const val = d.toISOString().substring(0, 7);
-                           const label = new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(d);
-                           return <option key={val} value={val}>{label}</option>;
-                         })}
+                         {monthOptions.map(({ value, label }) => (
+                           <option key={value} value={value}>{label}</option>
+                         ))}
                        </select>
                     </div>
                     <select
