@@ -18,7 +18,7 @@ interface Props {
 export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: Props) {
   const { user } = useAuth();
   const { monthOptions } = useMonthRange();
-  
+
   // Local state
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -26,20 +26,20 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [linkedIncomeId, setLinkedIncomeId] = useState('');
-  
+
   // Income Sources State
   const [incomeMonth, setIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
   const [localIncomeSources, setLocalIncomeSources] = useState<Transaction[]>([]);
 
   React.useEffect(() => {
     if (!user || type !== 'expense' || !isOpen) return;
-    
+
     const fetchIncomes = async () => {
       const parts = incomeMonth.split('-');
       const year = parseInt(parts[0]);
       const month = parseInt(parts[1]);
       const lastDay = new Date(year, month, 0).getDate();
-      
+
       const { data } = await supabase
         .from('transactions')
         .select('*')
@@ -48,10 +48,10 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
         .gte('date', `${incomeMonth}-01`)
         .lte('date', `${incomeMonth}-${lastDay}`)
         .order('date', { ascending: false });
-        
+
       if (data) setLocalIncomeSources(data as Transaction[]);
     };
-    
+
     fetchIncomes();
   }, [incomeMonth, type, user, isOpen]);
 
@@ -112,7 +112,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
           <div className="bg-card border border-border rounded-3xl p-6 shadow-sm mb-6">
             <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
               <Plus size={20} className="text-primary" />
-              Record New Transaction
+              Record New Activity
             </h3>
             <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -134,7 +134,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Amount</label>
+                  <label className="text-xs font-bold text-muted-foreground">Amount</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">Rp</span>
                     <input
@@ -149,7 +149,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Note (Category)</label>
+                  <label className="text-xs font-bold text-muted-foreground">Note (Category)</label>
                   <textarea
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
@@ -162,18 +162,18 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                 {type === 'expense' && (
                   <div className="space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                       <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                         <Link2 size={12} /> Link to Income
-                       </label>
-                       <select 
-                         value={incomeMonth} 
-                         onChange={(e) => setIncomeMonth(e.target.value)}
-                         className="bg-accent/50 border-none rounded-xl py-1.5 px-3 pr-8 text-xs font-bold outline-none focus:ring-2 ring-primary/20 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20fill%3D%22none%22%20stroke%3D%22%23717182%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.2em_1.2em] bg-[right_0.5rem_center] bg-no-repeat cursor-pointer"
-                       >
-                         {monthOptions.map(({ value, label }) => (
-                           <option key={value} value={value}>{label}</option>
-                         ))}
-                       </select>
+                      <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                        <Link2 size={12} /> Link to Income
+                      </label>
+                      <select
+                        value={incomeMonth}
+                        onChange={(e) => setIncomeMonth(e.target.value)}
+                        className="bg-accent/50 border-none rounded-xl py-1.5 px-3 pr-8 text-xs font-bold outline-none focus:ring-2 ring-primary/20 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20fill%3D%22none%22%20stroke%3D%22%23717182%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.2em_1.2em] bg-[right_0.5rem_center] bg-no-repeat cursor-pointer"
+                      >
+                        {monthOptions.map(({ value, label }) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
                     </div>
                     <select
                       value={linkedIncomeId}
@@ -193,7 +193,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date</label>
+                  <label className="text-xs font-bold text-muted-foreground">Date</label>
                   <div className="relative group">
                     <div className="absolute inset-0 bg-accent/50 rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none peer-focus:ring-2 ring-primary/20">
                       {date.split('-').reverse().join('/')}
@@ -208,15 +208,15 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                   </div>
                 </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Additional Description</label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={2}
-                      className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-muted-foreground">Additional Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
+                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
+                  />
+                </div>
 
                 <button
                   type="submit"

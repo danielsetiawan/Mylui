@@ -261,7 +261,7 @@ export function Notes() {
               </div>
               <form onSubmit={handleSaveNote} className="p-6 flex-1 flex flex-col space-y-4 overflow-y-auto">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Title</label>
+                  <label className="text-xs font-black text-muted-foreground">Title</label>
                   <input
                     type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                     placeholder="Note Title..."
@@ -270,7 +270,7 @@ export function Notes() {
                   />
                 </div>
                 <div className="flex-1 flex flex-col space-y-2">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Content</label>
+                  <label className="text-xs font-black text-muted-foreground">Content</label>
                   <textarea
                     value={content} onChange={(e) => setContent(e.target.value)}
                     placeholder="Write your note here..."

@@ -103,7 +103,7 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
             <form onSubmit={handleCreatePlan} className="p-6 overflow-y-auto space-y-6 flex-1">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Plan Title</label>
+                  <label className="text-xs font-black text-muted-foreground">Plan Title</label>
                   <input 
                     type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Bali Vacation, Room Renovation"
@@ -111,7 +111,7 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Total Budget Plan</label>
+                  <label className="text-xs font-black text-muted-foreground">Total Budget Plan</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">Rp</span>
                     <input 
@@ -125,7 +125,7 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Short Description</label>
+                  <label className="text-xs font-black text-muted-foreground">Short Description</label>
                   <input 
                     type="text" value={description} onChange={(e) => setDescription(e.target.value)}
                     placeholder="Additional notes..."
@@ -136,7 +136,7 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Budget Items (Estimate)</label>
+                  <label className="text-xs font-black text-muted-foreground">Budget Items (Estimate)</label>
                   <button type="button" onClick={addItem} className="text-primary text-xs font-black flex items-center gap-1 hover:underline">
                     <Plus size={14} /> Add Item
                   </button>

@@ -82,13 +82,13 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
                 
                 <div className="flex justify-between items-end">
                   <div>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Estimasi</p>
+                    <p className="text-[10px] font-bold text-muted-foreground mb-1">Estimasi</p>
                     <div title={formatCurrency(totalEstimate)} className="text-sm sm:text-lg font-black text-foreground leading-none">
                       {formatCurrency(totalEstimate)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sisa Budget</p>
+                    <p className="text-[10px] font-bold text-muted-foreground mb-1">Sisa Budget</p>
                     <div title={formatCurrency(sisaValue)} className={`text-sm sm:text-lg font-black leading-none ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
                       {sisaValue < 0 ? `-${formatCurrency(Math.abs(sisaValue))}` : formatCurrency(sisaValue)}
                     </div>
@@ -103,7 +103,7 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
 
               {/* Status update */}
               <div className="space-y-2">
-                <p className="text-xs font-black text-muted-foreground uppercase tracking-wider">Change Status</p>
+                <p className="text-xs font-black text-muted-foreground">Change Status</p>
                 <div className="flex gap-2 flex-wrap">
                   {(Object.keys(statusConfig) as Array<BudgetPlan['status']>).map(s => (
                     <button
@@ -118,7 +118,7 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-xs font-black text-muted-foreground uppercase tracking-wider px-1">Budget Details</h4>
+                <h4 className="text-xs font-black text-muted-foreground px-1">Budget Details</h4>
                 <div className="bg-accent/20 rounded-2xl border border-border divide-y divide-border overflow-hidden">
                   {(plan.budget_plan_items || []).length === 0 ? (
                     <p className="p-4 text-sm text-center text-muted-foreground">No items</p>

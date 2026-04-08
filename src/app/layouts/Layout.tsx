@@ -199,7 +199,7 @@ export function Layout() {
               </div>
               <form onSubmit={handleUpdateProfile} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider">Full Name</label>
+                  <label className="text-xs font-black text-muted-foreground">Full Name</label>
                   <input 
                     type="text" 
                     value={newFullName} 

@@ -27,7 +27,7 @@ interface Props {
 export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteRequest, formatCurrency }: Props) {
   const { user } = useAuth();
   const { monthOptions } = useMonthRange();
-  
+
   const [editType, setEditType] = useState<TransactionType>('expense');
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('');
@@ -48,10 +48,10 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
       setEditDescription(transaction.description || '');
       setEditDate(transaction.date);
       setEditLinkedIncomeId(transaction.linked_income_id || '');
-      setEditDetails((transaction.transaction_details || []).map(d => ({ 
-        id: d.id, 
-        name: d.name || d?.text || '', 
-        amount: d.amount || '' 
+      setEditDetails((transaction.transaction_details || []).map(d => ({
+        id: d.id,
+        name: d.name || d?.text || '',
+        amount: d.amount || ''
       })));
       // Set initial income month to transaction date month
       setIncomeMonth(transaction.date.substring(0, 7));
@@ -60,13 +60,13 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
 
   useEffect(() => {
     if (!user || editType !== 'expense' || !transaction) return;
-    
+
     const fetchIncomes = async () => {
       const parts = incomeMonth.split('-');
       const year = parseInt(parts[0]);
       const month = parseInt(parts[1]);
       const lastDay = new Date(year, month, 0).getDate();
-      
+
       const { data } = await supabase
         .from('transactions')
         .select('*')
@@ -75,10 +75,10 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
         .gte('date', `${incomeMonth}-01`)
         .lte('date', `${incomeMonth}-${lastDay}`)
         .order('date', { ascending: false });
-        
+
       if (data) setLocalIncomeSources(data as Transaction[]);
     };
-    
+
     fetchIncomes();
   }, [incomeMonth, editType, user, transaction]);
 
@@ -183,7 +183,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
           >
             <div className="p-4 border-b border-border flex justify-between items-center bg-accent/30">
               <h3 className="font-black text-lg flex items-center gap-2">
-                <Edit2 size={18} className="text-primary" /> Edit Transaction & Details
+                <Edit2 size={18} className="text-primary" /> Edit Activity & Details
               </h3>
               <button onClick={onClose} className="p-2 text-muted-foreground hover:bg-accent rounded-full transition-colors">
                 <X size={20} />
@@ -194,7 +194,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
               <form id="editForm" onSubmit={handleEditSave} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Amount</label>
+                    <label className="text-xs font-bold text-muted-foreground">Amount</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">Rp</span>
                       <input
@@ -207,7 +207,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Note (Category)</label>
+                    <label className="text-xs font-bold text-muted-foreground">Note (Category)</label>
                     <textarea
                       value={editCategory} onChange={(e) => setEditCategory(e.target.value)}
                       rows={2}
@@ -217,11 +217,11 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                   {editType === 'expense' && (
                     <div className="space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
                           <Link2 size={12} /> Link to Income
                         </label>
-                        <select 
-                          value={incomeMonth} 
+                        <select
+                          value={incomeMonth}
                           onChange={(e) => setIncomeMonth(e.target.value)}
                           className="bg-accent/50 border-none rounded-xl py-1.5 px-3 pr-8 text-xs font-bold outline-none focus:ring-2 ring-primary/20 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20fill%3D%22none%22%20stroke%3D%22%23717182%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.2em_1.2em] bg-[right_0.5rem_center] bg-no-repeat cursor-pointer"
                         >
@@ -247,7 +247,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date</label>
+                    <label className="text-xs font-bold text-muted-foreground">Date</label>
                     <div className="relative group">
                       <div className="absolute inset-0 bg-accent/50 rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none peer-focus:ring-2 ring-primary/20">
                         {(editDate || '').split('-').reverse().join('/')}
@@ -262,7 +262,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Additional Description</label>
+                    <label className="text-xs font-bold text-muted-foreground">Additional Description</label>
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
@@ -277,8 +277,8 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <ListTree size={16} /> Transaction Details (Split)
+                  <label className="text-xs font-black text-muted-foreground flex items-center gap-2">
+                    <ListTree size={16} /> Activity Details (Split)
                   </label>
                   <button type="button" onClick={handleAddDetail} className="text-primary text-xs font-black flex items-center gap-1 hover:underline bg-primary/10 px-2 py-1 rounded">
                     <Plus size={14} /> Add Detail
@@ -299,9 +299,9 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     {editDetails.map((det, index) => (
                       <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-accent/20 p-2 rounded-xl group">
                         <div className="flex-1 relative flex items-center min-w-[120px]">
-                           <span className="absolute left-3 text-xs font-black text-muted-foreground">Rp</span>
-                           <input
-                            type="text" 
+                          <span className="absolute left-3 text-xs font-black text-muted-foreground">Rp</span>
+                          <input
+                            type="text"
                             inputMode="numeric"
                             value={det.amount ? det.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
                             onChange={(e) => handleUpdateDetailAmount(index, e.target.value)}
@@ -322,7 +322,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     ))}
                   </div>
                 )}
-                
+
                 <div className="flex justify-end pt-2">
                   <button onClick={saveDetailsToDb} type="button" className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-emerald-200 font-bold transition-colors">
                     <Save size={12} /> Save Details Only

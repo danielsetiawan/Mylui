@@ -246,7 +246,7 @@ export function Planning() {
                   
                   <div className="flex items-end justify-between border-t border-border pt-3 mt-auto">
                     <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0">Budget</p>
+                      <p className="text-[8px] font-bold text-muted-foreground mb-0">Budget</p>
                       <div title={formatCurrency(plan.total_budget)} className="text-sm font-black text-primary truncate leading-none">
                         <span className="sm:hidden">{formatCompactCurrency(plan.total_budget)}</span>
                         <span className="hidden sm:inline">{formatCurrency(plan.total_budget)}</span>
@@ -254,7 +254,7 @@ export function Planning() {
                     </div>
                     {/* Used */}
                     <div className="flex-1 min-w-0 text-center px-1">
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-center">Used</p>
+                      <p className="text-[8px] font-bold text-muted-foreground mb-0 text-center">Used</p>
                       <div title={formatCurrency(totalEstimate)} className="text-sm font-black text-foreground truncate leading-none text-center">
                         <span className="sm:hidden">{formatCompactCurrency(totalEstimate)}</span>
                         <span className="hidden sm:inline">{formatCurrency(totalEstimate)}</span>
@@ -262,7 +262,7 @@ export function Planning() {
                     </div>
                     {/* Remaining */}
                     <div className="flex-1 min-w-0 text-right pl-2">
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-right">Remaining</p>
+                      <p className="text-[8px] font-bold text-muted-foreground mb-0 text-right">Remaining</p>
                       <div title={formatCurrency(sisaValue)} className={`text-sm font-black truncate leading-none text-right ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
                         <span className="sm:hidden">{formatCompactCurrency(sisaValue)}</span>
                         <span className="hidden sm:inline">{formatCurrency(sisaValue)}</span>

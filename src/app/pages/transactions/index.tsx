@@ -289,7 +289,7 @@ export function Transactions() {
             const total = t === 'income' ? stats.income : stats.expense;
             return (
               <div key={t} className={`p-2 sm:p-3 rounded-2xl border ${t === 'income' ? 'bg-emerald-50 border-emerald-150' : 'bg-rose-50 border-rose-150'} overflow-hidden`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
+                <p className={`text-[10px] font-bold truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
                 <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                   <span className="sm:hidden">{formatCompactCurrency(total)}</span>
                   <span className="hidden sm:inline">{formatCurrency(total)}</span>
@@ -298,7 +298,7 @@ export function Transactions() {
             );
           })}
           <div className="p-2 sm:p-3 rounded-2xl border bg-card border-border overflow-hidden">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">Balance</p>
+            <p className="text-[10px] font-bold text-muted-foreground truncate">Balance</p>
             <div title={formatCurrency(stats.balance)} className={`text-xs sm:text-sm font-black truncate ${stats.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               <span className="sm:hidden">{formatCompactCurrency(stats.balance)}</span>
               <span className="hidden sm:inline">{formatCurrency(stats.balance)}</span>

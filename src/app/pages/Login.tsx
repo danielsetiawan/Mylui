@@ -110,7 +110,7 @@ export function Login() {
                   className="overflow-hidden"
                 >
                   <div className="space-y-2 pb-1">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nama Lengkap</label>
+                    <label className="text-xs font-bold text-muted-foreground">Nama Lengkap</label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                       <input
@@ -127,7 +127,7 @@ export function Login() {
             </AnimatePresence>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email</label>
+              <label className="text-xs font-bold text-muted-foreground">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                 <input
@@ -142,7 +142,7 @@ export function Login() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Password</label>
+              <label className="text-xs font-bold text-muted-foreground">Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                 <input
