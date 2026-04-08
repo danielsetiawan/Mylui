@@ -28,20 +28,50 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allRecentTx, setAllRecentTx] = useState<Transaction[]>([]); // for the Recent list (last 6)
   const [plans, setPlans] = useState<BudgetPlan[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Current month filter (same logic as Transactions page)
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const thisMonthStart = `${thisMonth}-01`;
+  const thisMonthEnd = `${thisMonth}-${String(lastDay).padStart(2, '0')}`;
+
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  const lastMonthStart = `${lastMonth}-01`;
+  const lastMonthEndStr = `${lastMonth}-${String(lastMonthEnd.getDate()).padStart(2, '0')}`;
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
       try {
-        const [txResult, planResult] = await Promise.all([
+        const [txThisMonth, txLastMonth, recentTx, planResult] = await Promise.all([
+          // This month transactions — for stats cards
+          supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', user.id)
+            .gte('date', thisMonthStart)
+            .lte('date', thisMonthEnd)
+            .order('date', { ascending: false }),
+          // Last month transactions — for trend comparison
+          supabase
+            .from('transactions')
+            .select('type, amount')
+            .eq('user_id', user.id)
+            .gte('date', lastMonthStart)
+            .lte('date', lastMonthEndStr),
+          // Recent transactions (last 6, any time) — for Recent list & chart
           supabase
             .from('transactions')
             .select('*')
             .eq('user_id', user.id)
             .order('date', { ascending: false })
-            .limit(100),
+            .limit(30),
           supabase
             .from('budget_plans')
             .select('*')
@@ -49,8 +79,21 @@ export function Dashboard() {
             .order('created_at', { ascending: false })
             .limit(3),
         ]);
-        if (txResult.data) setTransactions(txResult.data as Transaction[]);
+
+        if (txThisMonth.data) setTransactions(txThisMonth.data as Transaction[]);
+        if (recentTx.data) setAllRecentTx(recentTx.data as Transaction[]);
         if (planResult.data) setPlans(planResult.data as BudgetPlan[]);
+
+        // Trend calculation using last month data
+        if (txLastMonth.data) {
+          const lmIncome = (txLastMonth.data as any[])
+            .filter((t: any) => t.type === 'income')
+            .reduce((a: number, t: any) => a + t.amount, 0);
+          const lmExpense = (txLastMonth.data as any[])
+            .filter((t: any) => t.type === 'expense')
+            .reduce((a: number, t: any) => a + t.amount, 0);
+          setLastMonthStats({ income: lmIncome, expense: lmExpense });
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -60,6 +103,9 @@ export function Dashboard() {
     fetchData();
   }, [user]);
 
+  const [lastMonthStats, setLastMonthStats] = useState({ income: 0, expense: 0 });
+
+  // Stats from THIS MONTH only
   const totalIncome = transactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0);
@@ -70,7 +116,7 @@ export function Dashboard() {
 
   const balance = totalIncome - totalExpense;
 
-  // Build chart data: last 7 days
+  // Build chart data: last 7 days — use allRecentTx so chart always has data
   const chartData = useMemo(() => {
     const days: { name: string; income: number; expense: number }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -78,16 +124,16 @@ export function Dashboard() {
       d.setDate(d.getDate() - i);
       const dayStr = d.toISOString().split('T')[0];
       const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
-      const income = transactions
+      const income = allRecentTx
         .filter(t => t.type === 'income' && t.date === dayStr)
         .reduce((acc, t) => acc + t.amount, 0);
-      const expense = transactions
+      const expense = allRecentTx
         .filter(t => t.type === 'expense' && t.date === dayStr)
         .reduce((acc, t) => acc + t.amount, 0);
       days.push({ name: dayName, income, expense });
     }
     return days;
-  }, [transactions]);
+  }, [allRecentTx]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -97,19 +143,13 @@ export function Dashboard() {
     }).format(val);
   };
 
-  // Trend bulan ini vs bulan lalu
-  const now = new Date();
-  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-
-  const thisMonthIncome = transactions.filter(t => t.type === 'income' && t.date.startsWith(thisMonth)).reduce((a, t) => a + t.amount, 0);
-  const lastMonthIncome = transactions.filter(t => t.type === 'income' && t.date.startsWith(lastMonth)).reduce((a, t) => a + t.amount, 0);
-  const incomeTrend = lastMonthIncome === 0 ? null : ((thisMonthIncome - lastMonthIncome) / lastMonthIncome * 100).toFixed(0);
-
-  const thisMonthExpense = transactions.filter(t => t.type === 'expense' && t.date.startsWith(thisMonth)).reduce((a, t) => a + t.amount, 0);
-  const lastMonthExpense = transactions.filter(t => t.type === 'expense' && t.date.startsWith(lastMonth)).reduce((a, t) => a + t.amount, 0);
-  const expenseTrend = lastMonthExpense === 0 ? null : ((thisMonthExpense - lastMonthExpense) / lastMonthExpense * 100).toFixed(0);
+  // Trend: this month vs last month — derived from lastMonthStats state (fetched in useEffect)
+  const incomeTrend = lastMonthStats.income === 0
+    ? null
+    : ((totalIncome - lastMonthStats.income) / lastMonthStats.income * 100).toFixed(0);
+  const expenseTrend = lastMonthStats.expense === 0
+    ? null
+    : ((totalExpense - lastMonthStats.expense) / lastMonthStats.expense * 100).toFixed(0);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -265,7 +305,7 @@ export function Dashboard() {
                   <p>No transactions yet</p>
                 </div>
               ) : (
-                transactions.slice(0, 6).map((t) => (
+                allRecentTx.slice(0, 6).map((t) => (
                   <div key={t.id} className="flex items-center justify-between group">
                     <div className="flex items-center gap-3">
                       <div className={`p-2.5 rounded-2xl ${t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>

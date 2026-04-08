@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarDays, ChevronRight, PlusCircle, Clock, CheckCircle2, Target, Search, Calendar, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
@@ -9,9 +9,11 @@ import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { PlanningAdd } from './add';
 import { PlanningEdit } from './edit';
 import { PlanningDetail } from './detail';
+import { useMonthRange } from '../../contexts/MonthRangeContext';
 
 export function Planning() {
   const { user } = useAuth();
+  const { monthOptions } = useMonthRange();
   const [plans, setPlans] = useState<BudgetPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -27,9 +29,7 @@ export function Planning() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const currentDate = new Date();
-  const defaultMonthYear = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-  const [filterMonthYear, setFilterMonthYear] = useState<string>(defaultMonthYear);
+  const [filterMonthYear, setFilterMonthYear] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
@@ -42,7 +42,7 @@ export function Planning() {
       setPlans([]);
       fetchPlans(0);
     }
-  }, [user, filterMonthYear, debouncedSearchTerm]);
+  }, [user, debouncedSearchTerm, filterMonthYear]);
 
   const fetchPlans = async (pageNum: number) => {
     if (!user) return;
@@ -129,12 +129,6 @@ export function Planning() {
     return formatCurrency(val);
   };
 
-  const availableMonths = useMemo(() => {
-    return Array.from(new Set([
-      defaultMonthYear,
-      ...plans.map(p => p.created_at.substring(0, 7))
-    ])).sort().reverse();
-  }, [plans, defaultMonthYear]);
 
   const statusConfig = {
     planning: { label: 'Planning', className: 'bg-amber-100 text-amber-700', icon: <Clock size={10} /> },
@@ -177,19 +171,16 @@ export function Planning() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 bg-card border border-border rounded-2xl px-4 py-2 hover:border-primary/50 transition-colors">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-2xl px-4 py-2 hover:border-primary/50 transition-colors shrink-0">
           <Calendar className="text-muted-foreground" size={20} />
           <select 
             value={filterMonthYear} onChange={(e) => setFilterMonthYear(e.target.value)}
             className="bg-transparent font-bold outline-none cursor-pointer appearance-none pr-4"
           >
             <option value="">All Time</option>
-            {availableMonths.map(m => {
-              const [y, mm] = m.split('-');
-              const date = new Date(parseInt(y), parseInt(mm) - 1);
-              const label = new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(date);
-              return <option key={m} value={m}>{label}</option>;
-            })}
+            {monthOptions.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -261,17 +252,17 @@ export function Planning() {
                         <span className="hidden sm:inline">{formatCurrency(plan.total_budget)}</span>
                       </div>
                     </div>
-                    {/* Terpakai */}
+                    {/* Used */}
                     <div className="flex-1 min-w-0 text-center px-1">
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-center">Terpakai</p>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-center">Used</p>
                       <div title={formatCurrency(totalEstimate)} className="text-sm font-black text-foreground truncate leading-none text-center">
                         <span className="sm:hidden">{formatCompactCurrency(totalEstimate)}</span>
                         <span className="hidden sm:inline">{formatCurrency(totalEstimate)}</span>
                       </div>
                     </div>
-                    {/* Sisa */}
+                    {/* Remaining */}
                     <div className="flex-1 min-w-0 text-right pl-2">
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-right">Sisa</p>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0 text-right">Remaining</p>
                       <div title={formatCurrency(sisaValue)} className={`text-sm font-black truncate leading-none text-right ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
                         <span className="sm:hidden">{formatCompactCurrency(sisaValue)}</span>
                         <span className="hidden sm:inline">{formatCurrency(sisaValue)}</span>
@@ -279,7 +270,7 @@ export function Planning() {
                     </div>
                   </div>
                   <div className="mt-2 text-[10px] text-muted-foreground font-medium shrink-0">
-                    <span>{(plan.budget_plan_items || []).length} item rincian</span>
+                    <span>{(plan.budget_plan_items || []).length} detail items</span>
                   </div>
                 </div>
               </div>

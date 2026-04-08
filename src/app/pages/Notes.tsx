@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { StickyNote, PlusCircle, Search, Trash2, X, Plus } from 'lucide-react';
+import { StickyNote, PlusCircle, Search, Trash2, X, Plus, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Note } from '../lib/types';
 import { toast } from 'sonner';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
+import { useMonthRange } from '../contexts/MonthRangeContext';
 
 export function Notes() {
   const { user } = useAuth();
+  const { monthOptions } = useMonthRange();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [filterMonthYear, setFilterMonthYear] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
@@ -37,7 +40,7 @@ export function Notes() {
       setNotes([]);
       fetchNotes(0);
     }
-  }, [user, debouncedSearchTerm]);
+  }, [user, debouncedSearchTerm, filterMonthYear]);
 
   const fetchNotes = async (pageNum: number) => {
     if (!user) return;
@@ -51,6 +54,12 @@ export function Notes() {
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
         .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1);
+
+      if (filterMonthYear) {
+        const [year, month] = filterMonthYear.split('-').map(Number);
+        const lastDay = new Date(year, month, 0).getDate();
+        query = query.gte('created_at', `${filterMonthYear}-01T00:00:00`).lte('created_at', `${filterMonthYear}-${lastDay}T23:59:59`);
+      }
 
       if (debouncedSearchTerm) {
         query = query.or(`title.ilike.%${debouncedSearchTerm}%,content.ilike.%${debouncedSearchTerm}%`);
@@ -153,13 +162,32 @@ export function Notes() {
         </button>
       </header>
 
-      <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
-        <input
-          type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search your notes..."
-          className="w-full bg-card border border-border rounded-2xl py-3 pl-12 pr-4 font-bold outline-none focus:ring-2 ring-primary/20 transition-all"
-        />
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
+          <input
+            type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search your notes..."
+            className="w-full bg-card border border-border rounded-2xl py-3 pl-12 pr-4 font-bold outline-none focus:ring-2 ring-primary/20 transition-all placeholder:font-medium"
+          />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 bg-card border border-border rounded-2xl px-4 py-2 hover:border-primary/50 transition-colors shrink-0">
+          <Calendar className="text-muted-foreground" size={20} />
+          <select 
+            value={filterMonthYear} onChange={(e) => setFilterMonthYear(e.target.value)}
+            className="bg-transparent font-bold outline-none cursor-pointer appearance-none pr-4"
+          >
+            <option value="">All Time</option>
+            {monthOptions.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
@@ -170,8 +198,13 @@ export function Notes() {
         ) : notes.length === 0 ? (
           <div className="col-span-full bg-card border border-border border-dashed rounded-3xl p-12 text-center">
             <StickyNote className="mx-auto mb-4 text-muted-foreground opacity-20" size={48} />
-            <h3 className="font-bold text-lg">No notes yet</h3>
-            <p className="text-muted-foreground">Start writing your first note today.</p>
+            <h3 className="font-bold text-lg">No notes found</h3>
+            <p className="text-muted-foreground mt-1">Try adjusting your filters or write a new note.</p>
+            {searchTerm || filterMonthYear ? (
+              <button onClick={() => { setSearchTerm(''); setFilterMonthYear(''); }} className="mt-4 text-primary font-bold hover:underline">
+                Clear all filters
+              </button>
+            ) : null}
           </div>
         ) : (
           notes.map(note => (

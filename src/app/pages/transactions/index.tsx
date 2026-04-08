@@ -11,9 +11,11 @@ import { toast } from 'sonner';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { TransactionAdd } from './add';
 import { TransactionEdit } from './edit';
+import { useMonthRange } from '../../contexts/MonthRangeContext';
 
 export function Transactions() {
   const { user } = useAuth();
+  const { monthOptions } = useMonthRange(); // ← global cached month list
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
@@ -166,10 +168,7 @@ export function Transactions() {
     return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(d);
   }, []);
 
-  const availableMonths = useMemo(() => Array.from(new Set([
-    defaultMonthYear,
-    ...transactions.map(t => t.date.substring(0, 7))
-  ])).sort().reverse(), [transactions, defaultMonthYear]);
+  // Month options come from global MonthRangeContext (fetched once at app load)
 
   const groupedTransactions = useMemo(() => transactions.reduce((acc, transaction) => {
     const groupKey = formatMonthYear(transaction.date);
@@ -258,26 +257,24 @@ export function Transactions() {
           )}
         </div>
 
-        <div className="flex flex-row overflow-x-auto hide-scrollbar gap-2 pb-2 md:pb-0 shrink-0">
-          <div className="relative shrink-0">
+        <div className="flex flex-wrap md:flex-nowrap gap-2 shrink-0">
+          <div className="relative flex-1 md:flex-none min-w-0">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
               <CalendarDays size={18} />
             </div>
             <select
               value={filterMonthYear}
               onChange={(e) => setFilterMonthYear(e.target.value)}
-              className="bg-card border border-border rounded-2xl py-3 pl-10 pr-10 font-bold outline-none focus:ring-2 ring-primary/20 cursor-pointer h-full min-w-[150px] appearance-none"
+              className="w-full bg-card border border-border rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20 cursor-pointer h-full md:min-w-[170px] appearance-none"
             >
               <option value="">All Time</option>
-              {availableMonths.map(monthStr => (
-                <option key={monthStr} value={monthStr}>
-                  {formatMonthYear(monthStr + '-01')}
-                </option>
+              {monthOptions.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
               ))}
             </select>
           </div>
 
-          <div className="flex p-1 bg-card border border-border rounded-2xl w-fit shrink-0">
+          <div className="flex flex-1 md:flex-none p-1 bg-card border border-border rounded-2xl md:w-fit justify-between">
             <FilterButton active={filterType === 'all'} onClick={() => setFilterType('all')} label="All" />
             <FilterButton active={filterType === 'income'} onClick={() => setFilterType('income')} label="In" />
             <FilterButton active={filterType === 'expense'} onClick={() => setFilterType('expense')} label="Out" />
@@ -425,7 +422,7 @@ function TransactionItem({
               </span>
               {transaction.description && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1 overflow-hidden" title={transaction.description}>
-                  <Tag size={12} className="shrink-0" /> 
+                  <Tag size={12} className="shrink-0" />
                   <span className="truncate max-w-[150px] sm:max-w-[300px]"><HighlightMatch text={transaction.description} match={searchTerm} /></span>
                 </span>
               )}
