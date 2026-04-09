@@ -122,13 +122,13 @@ export function Dashboard() {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dayStr = d.toISOString().split('T')[0];
+      const dayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
       const income = allRecentTx
-        .filter(t => t.type === 'income' && t.date === dayStr)
+        .filter(t => t.type === 'income' && t.date.startsWith(dayStr))
         .reduce((acc, t) => acc + t.amount, 0);
       const expense = allRecentTx
-        .filter(t => t.type === 'expense' && t.date === dayStr)
+        .filter(t => t.type === 'expense' && t.date.startsWith(dayStr))
         .reduce((acc, t) => acc + t.amount, 0);
       days.push({ name: dayName, income, expense });
     }

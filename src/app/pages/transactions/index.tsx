@@ -83,6 +83,7 @@ export function Transactions() {
         .from('transactions')
         .select('*, transaction_details(*)', { count: 'exact' })
         .eq('user_id', user.id)
+        .order('date', { ascending: false })
         .order('created_at', { ascending: false })
         .range(start, end);
 
