@@ -34,15 +34,15 @@ const ModifierInput = ({
       <div className="flex bg-accent/50 p-0.5 rounded-lg border border-border/50">
         <button 
           onClick={() => { onTypeChange('percentage'); onValueChange(0); }}
-          className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors ${type === 'percentage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          className={`px-3 py-1 rounded-md text-[10px] font-bold transition-colors ${type === 'percentage' ? 'bg-background shadow-sm text-foreground border border-border/50' : 'text-muted-foreground'}`}
         >
-          <Percent size={12} className="inline mr-1" /> %
+          %
         </button>
         <button 
           onClick={() => { onTypeChange('nominal'); onValueChange(0); }}
-          className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors ${type === 'nominal' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          className={`px-3 py-1 rounded-md text-[10px] font-bold transition-colors ${type === 'nominal' ? 'bg-background shadow-sm text-foreground border border-border/50' : 'text-muted-foreground'}`}
         >
-          <DollarSign size={12} className="inline mr-1" /> Rp
+          Rp
         </button>
       </div>
     </div>
@@ -134,15 +134,30 @@ export function SplitBillEdit({ bill, onClose }: { bill: any; onClose: () => voi
     const targetGrandTotal = Math.round(exactGrandTotal);
 
     // 3. Proportioning Items (Rounding gap eliminated as requested)
+    const uniquePeopleMap = new Map<string, number>();
+    items.forEach(i => {
+      const p = i.personName.trim() || 'Unassigned';
+      uniquePeopleMap.set(p, (uniquePeopleMap.get(p) || 0) + 1);
+    });
+    
+    const numPeople = uniquePeopleMap.size || 1;
+    const adminPerPerson = adminFee / numPeople;
+    const deliveryPerPerson = deliveryFee / numPeople;
+
     const calculatedItems = items.map(item => {
       const price = (item.originalPrice || 0) * (item.qty || 1);
       const ratio = totalSubtotal > 0 ? price / totalSubtotal : 0;
       
+      const p = item.personName.trim() || 'Unassigned';
+      const personItemCount = uniquePeopleMap.get(p) || 1;
+      
       const itemTax = ratio * taxNominal;
       const itemService = ratio * serviceNominal;
       const itemDiscount = ratio * discountNominal;
-      const itemDelivery = ratio * deliveryFee;
-      const itemAdmin = ratio * adminFee;
+      
+      // Flat fees divided evenly per person, then assigned to their items
+      const itemDelivery = deliveryPerPerson / personItemCount;
+      const itemAdmin = adminPerPerson / personItemCount;
       
       const exactTotal = price + itemTax + itemService + itemDelivery + itemAdmin - itemDiscount;
       const finalPrice = Math.round(exactTotal);
