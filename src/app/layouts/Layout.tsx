@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User, Split } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -115,6 +115,7 @@ export function Layout() {
           <NavItem to="/transactions" icon={<ReceiptText size={20} />} label="Activity" />
           <NavItem to="/planning" icon={<CalendarDays size={20} />} label="Planning" />
           <NavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
+          <NavItem to="/split-bill" icon={<Split size={20} />} label="Split Bill" />
         </nav>
 
         {/* Sidebar Footer Logout only */}
@@ -178,6 +179,7 @@ export function Layout() {
         <MobileNavItem to="/transactions" icon={<ReceiptText size={20} />} label="Trans" />
         <MobileNavItem to="/planning" icon={<CalendarDays size={20} />} label="Plans" />
         <MobileNavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
+        <MobileNavItem to="/split-bill" icon={<Split size={20} />} label="Split" />
       </nav>
 
       {/* Edit Profile Modal */}

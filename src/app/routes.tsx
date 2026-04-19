@@ -6,6 +6,7 @@ import { Transactions } from "./pages/transactions";
 import { Planning } from "./pages/planning";
 import { Notes } from "./pages/Notes";
 import { Login } from "./pages/Login";
+import { SplitBill } from "./pages/split-bill";
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
           {
             path: "notes",
             Component: Notes,
+          },
+          {
+            path: "split-bill",
+            Component: SplitBill,
           },
         ],
       },
