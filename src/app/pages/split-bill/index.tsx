@@ -111,7 +111,10 @@ export function SplitBill() {
                 <div>
                   <h3 className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">{bill.title}</h3>
                   <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-1">
-                    <Calendar size={12} /> {new Date(bill.created_at).toLocaleDateString()}
+                    <Calendar size={12} /> {(() => {
+                      const d = new Date(bill.created_at);
+                      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+                    })()}
                   </p>
                 </div>
                 <button 

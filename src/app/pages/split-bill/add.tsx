@@ -264,17 +264,15 @@ export function SplitBillAdd({ onClose }: { onClose: () => void }) {
             <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
               <Split className="text-primary" size={24} />
             </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
-                <input 
-                  type="text" 
-                  value={title} 
-                  onChange={e => setTitle(e.target.value)} 
-                  className="bg-transparent border-none outline-none ring-0 w-full placeholder:text-muted-foreground/50 transition-all focus:bg-accent/50 focus:rounded-lg focus:px-2 -ml-2 py-1"
-                  placeholder="Trip to Bali..."
-                />
-              </h1>
-              <p className="text-sm font-bold text-muted-foreground mt-1 uppercase tracking-widest">Fairly divide your bills</p>
+            <div className="flex flex-col gap-1 w-full max-w-sm">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Bill Title</label>
+              <input 
+                type="text" 
+                value={title} 
+                onChange={e => setTitle(e.target.value)} 
+                className="w-full bg-accent/50 border border-border/50 rounded-2xl py-2 px-4 font-bold outline-none focus:ring-2 ring-primary/20 transition-all placeholder:opacity-50"
+                placeholder="e.g. Dinner with Friends"
+              />
             </div>
           </div>
         </div>
