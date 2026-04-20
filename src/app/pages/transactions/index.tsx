@@ -101,7 +101,7 @@ export function Transactions() {
       if (error) throw error;
 
       let finalData = data as Transaction[];
-      
+
       // Perform an application-level "join" for linked_incomes to avoid PGRST schema cache constraint errors
       if (finalData && finalData.length > 0) {
         const linkedIds = [...new Set(finalData.filter(t => t.linked_income_id).map(t => t.linked_income_id as string))];
@@ -110,7 +110,7 @@ export function Transactions() {
             .from('transactions')
             .select('id, description, category, amount, date')
             .in('id', linkedIds);
-          
+
           if (incomeDetails && incomeDetails.length > 0) {
             const incomeMap = new Map(incomeDetails.map(inc => [inc.id, inc]));
             finalData = finalData.map(t => ({
@@ -434,11 +434,10 @@ function TransactionItem({
     <div onClick={onEdit} className="p-4 md:p-6 hover:bg-accent/30 transition-colors group cursor-pointer">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-2xl shrink-0 ${
-            isTransfer ? 'bg-blue-50 text-blue-600'
+          <div className={`p-3 rounded-2xl shrink-0 ${isTransfer ? 'bg-blue-50 text-blue-600'
             : transaction.type === 'income' ? 'bg-emerald-50 text-emerald-600'
-            : 'bg-rose-50 text-rose-600'
-          }`}>
+              : 'bg-rose-50 text-rose-600'
+            }`}>
             {isTransfer ? <ArrowRightLeft size={24} /> : transaction.type === 'income' ? <ArrowUpRight size={24} /> : <ArrowDownRight size={24} />}
           </div>
           <div className="min-w-0">
@@ -466,18 +465,18 @@ function TransactionItem({
                     : transaction.wallet.name}
                 </span>
               )}
+              {/* Category info */}
+              {categoryBadgeName && transaction.description && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                  <Tag size={12} />
+                  {categoryBadgeName}
+                </span>
+              )}
               {/* Linked income badge */}
               {transaction.linked_income && (
                 <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                   <Link2 size={10} />
                   {transaction.linked_income.description || transaction.linked_income.category}
-                </span>
-              )}
-              {/* Category badge — shown only when description is the title */}
-              {categoryBadgeName && transaction.description && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
-                  style={{ backgroundColor: (transaction.transaction_category?.color || '#64748b') + '20', color: transaction.transaction_category?.color || '#64748b' }}>
-                  {categoryBadgeName}
                 </span>
               )}
             </div>
@@ -486,11 +485,10 @@ function TransactionItem({
 
         <div className="flex items-center gap-2 sm:gap-4 ml-4 shrink-0">
           <div className="text-right">
-            <div title={formatCurrency(transaction.amount)} className={`font-black text-sm sm:text-lg whitespace-nowrap ${
-              isTransfer ? 'text-blue-600'
+            <div title={formatCurrency(transaction.amount)} className={`font-black text-sm sm:text-lg whitespace-nowrap ${isTransfer ? 'text-blue-600'
               : transaction.type === 'income' ? 'text-emerald-600'
-              : 'text-rose-600'
-            }`}>
+                : 'text-rose-600'
+              }`}>
               {isTransfer ? '' : transaction.type === 'income' ? '+' : '-'}
               <span className="sm:hidden">{formatCompactCurrency(transaction.amount).replace('Rp ', '')}</span>
               <span className="hidden sm:inline">{formatCurrency(transaction.amount).replace('Rp ', '')}</span>
