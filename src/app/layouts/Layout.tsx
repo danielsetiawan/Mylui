@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User, Split, DatabaseZap } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User, Split, DatabaseZap, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -110,12 +110,20 @@ export function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-1">
           <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
           <NavItem to="/transactions" icon={<ReceiptText size={20} />} label="Activity" />
           <NavItem to="/planning" icon={<CalendarDays size={20} />} label="Planning" />
           <NavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
           <NavItem to="/split-bill" icon={<Split size={20} />} label="Split Bill" />
+
+          {/* Master Data Section */}
+          <div className="pt-4 pb-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 px-3 mb-1">Master Data</p>
+          </div>
+          <NavItem to="/master-data/wallets" icon={<Wallet size={20} />} label="Wallets" />
+          <NavItem to="/master-data/categories" icon={<Tag size={20} />} label="Categories" />
+
           {profile?.role === 'admin' && (
             <NavItem to="/init" icon={<DatabaseZap size={20} />} label="Init Data" />
           )}

@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { Plus, Link2, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, ArrowRightLeft, Link2, ListTree, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Transaction, TransactionType } from '../../lib/types';
-import { toast } from 'sonner';
-
+import { useWalletCategory } from '../../contexts/WalletCategoryContext';
+import { QuickSelectWithAdd } from '../../components/QuickSelectWithAdd';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
+import { toast } from 'sonner';
 
 interface Props {
   isOpen: boolean;
@@ -15,90 +16,106 @@ interface Props {
   formatCurrency: (val: number) => string;
 }
 
+type TabType = 'expense' | 'income' | 'transfer';
+
 export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: Props) {
   const { user } = useAuth();
-  const { monthOptions } = useMonthRange();
+  const { wallets, categories, addWallet, addCategory } = useWalletCategory();
 
-  // Local state
-  const [type, setType] = useState<TransactionType>('expense');
+  const [tab, setTab] = useState<TabType>('expense');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [walletId, setWalletId] = useState('');
+  const [toWalletId, setToWalletId] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [linkedIncomeId, setLinkedIncomeId] = useState('');
-
-  // Income Sources State
   const [incomeMonth, setIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
   const [localIncomeSources, setLocalIncomeSources] = useState<Transaction[]>([]);
+  const { monthOptions } = useMonthRange();
 
-  React.useEffect(() => {
-    if (!user || type !== 'expense' || !isOpen) return;
+  // Details state
+  const [details, setDetails] = useState<{ name: string; amount: number | '' }[]>([]);
+  const [showDetails, setShowDetails] = useState(false);
 
+  useEffect(() => {
+    if (!user || tab !== 'expense' || !isOpen) return;
     const fetchIncomes = async () => {
       const parts = incomeMonth.split('-');
-      const year = parseInt(parts[0]);
-      const month = parseInt(parts[1]);
+      const year = parseInt(parts[0]); const month = parseInt(parts[1]);
       const lastDay = new Date(year, month, 0).getDate();
-
       const { data } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('type', 'income')
-        .gte('date', `${incomeMonth}-01`)
-        .lte('date', `${incomeMonth}-${lastDay}`)
+        .from('transactions').select('*').eq('user_id', user.id).eq('type', 'income')
+        .gte('date', `${incomeMonth}-01`).lte('date', `${incomeMonth}-${lastDay}`)
         .order('date', { ascending: false });
-
       if (data) setLocalIncomeSources(data as Transaction[]);
     };
-
     fetchIncomes();
-  }, [incomeMonth, type, user, isOpen]);
+  }, [incomeMonth, tab, user, isOpen]);
+
+  const expenseCategories = categories.filter(c => c.type === 'expense');
+  const incomeCategories = categories.filter(c => c.type === 'income');
 
   const resetForm = () => {
-    setAmount('');
-    setCategory('');
-    setDescription('');
+    setAmount(''); setCategoryId(''); setWalletId('');
+    setToWalletId(''); setDescription(''); setLinkedIncomeId('');
     setDate(new Date().toISOString().split('T')[0]);
-    setLinkedIncomeId('');
-    setType('expense');
+    setDetails([]); setShowDetails(false);
   };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !category || !user) {
-      toast.error('Please fill in amount and category');
-      return;
-    }
+    if (!user || !amount) { toast.error('Please fill in the amount'); return; }
+
+    if (tab !== 'transfer' && !walletId) { toast.error('Please select a wallet'); return; }
+    if (tab === 'transfer' && (!walletId || !toWalletId)) { toast.error('Please select both wallets'); return; }
+    if (tab === 'transfer' && walletId === toWalletId) { toast.error('From and To wallet cannot be the same'); return; }
 
     try {
+      const numAmount = parseInt(amount, 10);
       const payload: any = {
         user_id: user.id,
-        type,
-        amount: parseFloat(amount),
-        category,
+        type: tab as TransactionType,
+        amount: numAmount,
+        category: '',  // legacy field, kept blank
         description,
         date,
+        wallet_id: walletId || null,
+        to_wallet_id: tab === 'transfer' ? (toWalletId || null) : null,
+        category_id: tab !== 'transfer' ? (categoryId || null) : null,
+        linked_income_id: tab === 'expense' ? (linkedIncomeId || null) : null,
       };
-      if (type === 'expense' && linkedIncomeId) {
-        payload.linked_income_id = linkedIncomeId;
-      }
 
-      const { error } = await supabase
+      const { data: txData, error } = await supabase
         .from('transactions')
         .insert(payload)
-        .select('*, transaction_details(*)')
+        .select()
         .single();
 
       if (error) throw error;
 
+      // Insert details if any
+      const validDetails = details.filter(d => d.name.trim() && d.amount !== '');
+      if (validDetails.length > 0 && txData) {
+        await supabase.from('transaction_details').insert(
+          validDetails.map(d => ({ transaction_id: txData.id, name: d.name, amount: d.amount }))
+        );
+      }
+
       resetForm();
       onSuccess();
-      toast.success('Transaction added!');
-    } catch (error: any) {
-      toast.error('Failed to add transaction: ' + error.message);
+      toast.success(tab === 'transfer' ? 'Transfer recorded!' : 'Transaction added!');
+    } catch (err: any) {
+      toast.error('Failed: ' + err.message);
     }
   };
+
+  const tabStyle = (t: TabType) =>
+    `px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${tab === t
+      ? t === 'income' ? 'bg-white shadow-sm text-emerald-600'
+        : t === 'transfer' ? 'bg-white shadow-sm text-blue-600'
+        : 'bg-white shadow-sm text-rose-600'
+      : 'text-muted-foreground hover:text-foreground'}`;
 
   return (
     <AnimatePresence>
@@ -110,65 +127,84 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
           className="overflow-hidden"
         >
           <div className="bg-card border border-border rounded-3xl p-6 shadow-sm mb-6">
-            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-              <Plus size={20} className="text-primary" />
-              Record New Activity
+            <h3 className="font-bold text-lg mb-5 flex items-center gap-2">
+              <Plus size={20} className="text-primary" /> Record New Activity
             </h3>
-            <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex p-1 bg-accent rounded-xl w-fit">
-                  <button
-                    type="button"
-                    onClick={() => setType('expense')}
-                    className={`px-6 py-1.5 rounded-lg text-sm font-bold transition-all ${type === 'expense' ? 'bg-white shadow-sm text-rose-600' : 'text-muted-foreground'}`}
-                  >
-                    Expense
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setType('income')}
-                    className={`px-6 py-1.5 rounded-lg text-sm font-bold transition-all ${type === 'income' ? 'bg-white shadow-sm text-emerald-600' : 'text-muted-foreground'}`}
-                  >
-                    Income
-                  </button>
-                </div>
 
-                <div className="space-y-2">
+            {/* Tab Switcher */}
+            <div className="flex p-1 bg-accent rounded-xl w-fit mb-6 gap-0.5">
+              <button type="button" onClick={() => setTab('expense')} className={tabStyle('expense')}>Expense</button>
+              <button type="button" onClick={() => setTab('income')} className={tabStyle('income')}>Income</button>
+              <button type="button" onClick={() => setTab('transfer')} className={tabStyle('transfer')}>
+                <span className="flex items-center gap-1"><ArrowRightLeft size={14} /> Transfer</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* --- LEFT COLUMN --- */}
+              <div className="space-y-4">
+                {/* Amount */}
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground">Amount</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">Rp</span>
                     <input
-                      type="text"
-                      inputMode="numeric"
+                      type="text" inputMode="numeric"
                       value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                      onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
+                      onChange={e => setAmount(e.target.value.replace(/\D/g, ''))}
                       placeholder="0"
                       className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-black text-xl outline-none focus:ring-2 ring-primary/20"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground">Note (Category)</label>
-                  <textarea
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    placeholder="e.g. Salary, Food, Transport"
-                    rows={2}
-                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
-                  />
-                </div>
+                {/* Wallet From */}
+                <QuickSelectWithAdd
+                  label={tab === 'transfer' ? 'From Wallet' : 'Wallet / Sumber'}
+                  value={walletId}
+                  options={wallets}
+                  onChange={setWalletId}
+                  onAdd={async (name) => addWallet({ name, icon: 'Wallet', color: '#10b981', balance: 0 })}
+                  placeholder="Pilih wallet..."
+                  required
+                />
 
-                {type === 'expense' && (
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                {/* To Wallet — only for Transfer */}
+                {tab === 'transfer' && (
+                  <QuickSelectWithAdd
+                    label="To Wallet"
+                    value={toWalletId}
+                    options={wallets.filter(w => w.id !== walletId)}
+                    onChange={setToWalletId}
+                    onAdd={async (name) => addWallet({ name, icon: 'Wallet', color: '#3b82f6', balance: 0 })}
+                    placeholder="Pilih tujuan..."
+                    required
+                  />
+                )}
+
+                {/* Category — only for Income/Expense */}
+                {tab !== 'transfer' && (
+                  <QuickSelectWithAdd
+                    label="Category"
+                    value={categoryId}
+                    options={tab === 'expense' ? expenseCategories : incomeCategories}
+                    onChange={setCategoryId}
+                    onAdd={async (name) => addCategory({ name, icon: 'Tag', color: '#64748b', type: tab })}
+                    placeholder="Pilih kategori..."
+                  />
+                )}
+
+                {/* Link to Income — only for expense */}
+                {tab === 'expense' && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                        <Link2 size={12} /> Link to Income
+                        <Link2 size={12} /> Link to Income <span className="font-normal opacity-60">(opsional)</span>
                       </label>
                       <select
                         value={incomeMonth}
-                        onChange={(e) => setIncomeMonth(e.target.value)}
-                        className="bg-accent/50 border-none rounded-xl py-1.5 px-3 pr-8 text-xs font-bold outline-none focus:ring-2 ring-primary/20 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20fill%3D%22none%22%20stroke%3D%22%23717182%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.2em_1.2em] bg-[right_0.5rem_center] bg-no-repeat cursor-pointer"
+                        onChange={e => setIncomeMonth(e.target.value)}
+                        className="text-xs font-bold bg-accent/50 border-none rounded-lg py-1 px-2 outline-none appearance-none cursor-pointer"
                       >
                         {monthOptions.map(({ value, label }) => (
                           <option key={value} value={value}>{label}</option>
@@ -177,13 +213,13 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     </div>
                     <select
                       value={linkedIncomeId}
-                      onChange={(e) => setLinkedIncomeId(e.target.value)}
+                      onChange={e => setLinkedIncomeId(e.target.value)}
                       className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
                     >
-                      <option value="">Select Funding Source (Optional)</option>
-                      {localIncomeSources.map(source => (
-                        <option key={source.id} value={source.id}>
-                          {source.category} ({formatCurrency(source.amount)})
+                      <option value="">Tidak ditautkan</option>
+                      {localIncomeSources.map(src => (
+                        <option key={src.id} value={src.id}>
+                          {src.description || src.category} ({formatCurrency(src.amount)})
                         </option>
                       ))}
                     </select>
@@ -191,41 +227,103 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                 )}
               </div>
 
+              {/* --- RIGHT COLUMN --- */}
               <div className="space-y-4">
-                <div className="space-y-2">
+                {/* Date */}
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground">Date</label>
                   <div className="relative group">
-                    <div className="absolute inset-0 bg-accent/50 rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none peer-focus:ring-2 ring-primary/20">
+                    <div className="absolute inset-0 bg-accent/50 rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none">
                       {date.split('-').reverse().join('/')}
                     </div>
                     <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      onClick={(e) => { (e.target as any).showPicker && (e.target as any).showPicker(); }}
+                      type="date" value={date}
+                      onChange={e => setDate(e.target.value)}
+                      onClick={e => { (e.target as any).showPicker?.(); }}
                       className="w-full bg-transparent border-none rounded-2xl py-3 px-4 font-bold outline-none opacity-0 cursor-pointer h-[52px]"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground">Additional Description</label>
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted-foreground">Description / Notes</label>
                   <textarea
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={2}
+                    onChange={e => setDescription(e.target.value)}
+                    rows={3}
+                    placeholder={tab === 'transfer' ? 'Catatan transfer (opsional)' : 'Catatan tambahan (opsional)'}
                     className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-black text-lg transition-all hover:bg-primary/90 mt-4"
-                >
-                  Save Transaction
+                {/* Details Toggle — only for income/expense */}
+                {tab !== 'transfer' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="text-xs font-bold text-muted-foreground flex items-center gap-1 hover:text-primary transition-colors"
+                  >
+                    <ListTree size={14} /> {showDetails ? 'Hide' : 'Add'} Detail Items {details.length > 0 ? `(${details.length})` : ''}
+                  </button>
+                )}
+
+                <button type="submit" className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-black text-base transition-all hover:bg-primary/90">
+                  {tab === 'transfer' ? 'Record Transfer' : 'Save Transaction'}
                 </button>
               </div>
             </form>
+
+            {/* Details panel */}
+            <AnimatePresence>
+              {showDetails && tab !== 'transfer' && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden mt-5"
+                >
+                  <div className="border-t border-border pt-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">Detail Items</span>
+                      <button
+                        type="button"
+                        onClick={() => setDetails([{ name: '', amount: '' }, ...details])}
+                        className="text-primary text-xs font-black flex items-center gap-1 bg-primary/10 px-2 py-1 rounded"
+                      >
+                        <Plus size={14} /> Add Row
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {details.map((d, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-accent/20 p-2 rounded-xl">
+                          <div className="relative flex items-center w-32 shrink-0">
+                            <span className="absolute left-3 text-xs font-black text-muted-foreground">Rp</span>
+                            <input
+                              type="text" inputMode="numeric"
+                              value={d.amount ? d.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+                              onChange={e => { const a = [...details]; a[i].amount = parseInt(e.target.value.replace(/\D/g, ''), 10) || ''; setDetails(a); }}
+                              placeholder="0"
+                              className="w-full bg-background border border-border rounded-lg py-2 pl-8 pr-2 text-sm font-black outline-none focus:border-primary"
+                            />
+                          </div>
+                          <input
+                            type="text" value={d.name}
+                            onChange={e => { const a = [...details]; a[i].name = e.target.value; setDetails(a); }}
+                            placeholder="Keterangan..."
+                            className="flex-1 bg-background border border-border rounded-lg py-2 px-3 text-sm font-semibold outline-none focus:border-primary"
+                          />
+                          <button type="button" onClick={() => setDetails(details.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-rose-500 p-1.5 rounded-lg">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      {details.length === 0 && <p className="text-xs text-muted-foreground italic">Klik "Add Row" untuk menambahkan detail.</p>}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
       )}

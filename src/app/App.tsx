@@ -3,15 +3,18 @@ import { router } from "./routes";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import { MonthRangeProvider } from "./contexts/MonthRangeContext";
+import { WalletCategoryProvider } from "./contexts/WalletCategoryContext";
 
 export default function App() {
   return (
     <AuthProvider>
-      {/* MonthRangeProvider must be inside AuthProvider so it can read user state */}
       <MonthRangeProvider>
-        <Toaster position="bottom-center" richColors />
-        <RouterProvider router={router} />
+        <WalletCategoryProvider>
+          <Toaster position="bottom-center" richColors />
+          <RouterProvider router={router} />
+        </WalletCategoryProvider>
       </MonthRangeProvider>
     </AuthProvider>
   );
 }
+

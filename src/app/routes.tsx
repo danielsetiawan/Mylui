@@ -8,6 +8,8 @@ import { Notes } from "./pages/Notes";
 import { Login } from "./pages/Login";
 import { SplitBill } from "./pages/split-bill";
 import { Init } from "./pages/Init";
+import { WalletsPage } from "./pages/master-data/WalletsPage";
+import { CategoriesPage } from "./pages/master-data/CategoriesPage";
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +46,14 @@ export const router = createBrowserRouter([
           {
             path: "init",
             Component: Init,
+          },
+          {
+            path: "master-data/wallets",
+            Component: WalletsPage,
+          },
+          {
+            path: "master-data/categories",
+            Component: CategoriesPage,
           },
         ],
       },
