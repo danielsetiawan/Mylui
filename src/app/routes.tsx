@@ -7,6 +7,7 @@ import { Planning } from "./pages/planning";
 import { Notes } from "./pages/Notes";
 import { Login } from "./pages/Login";
 import { SplitBill } from "./pages/split-bill";
+import { Init } from "./pages/Init";
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +40,10 @@ export const router = createBrowserRouter([
           {
             path: "split-bill",
             Component: SplitBill,
+          },
+          {
+            path: "init",
+            Component: Init,
           },
         ],
       },
