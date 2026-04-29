@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Tag, Plus, Trash2, Pencil, Check, X, Loader2 } from 'lucide-react';
+import {
+  Tag, Plus, Trash2, Pencil, Check, X, Loader2,
+  ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
+  Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
+  Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
+  Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Map as MapIcon, Compass, Mountain,
+  Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { useWalletCategory } from '../../contexts/WalletCategoryContext';
@@ -8,16 +15,102 @@ import { toast } from 'sonner';
 
 const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
 
+// Available icons with labels
+const AVAILABLE_ICONS: { name: string; label: string; Icon: React.ElementType }[] = [
+  { name: 'Tag', label: 'Umum', Icon: Tag },
+  { name: 'Utensils', label: 'Makanan', Icon: Utensils },
+  { name: 'Coffee', label: 'Kopi', Icon: Coffee },
+  { name: 'ShoppingBag', label: 'Belanja', Icon: ShoppingBag },
+  { name: 'ShoppingCart', label: 'Supermarket', Icon: ShoppingCart },
+  { name: 'ShoppingBasket', label: 'Jajanan', Icon: ShoppingBasket },
+  { name: 'Cookie', label: 'Snack', Icon: Cookie },
+  { name: 'IceCream2', label: 'Es Krim', Icon: IceCream2 },
+  { name: 'Pizza', label: 'Pizza', Icon: Pizza },
+  { name: 'Sandwich', label: 'Fast Food', Icon: Sandwich },
+  { name: 'Soup', label: 'Makanan Berat', Icon: Soup },
+  { name: 'Car', label: 'Mobil', Icon: Car },
+  { name: 'Truck', label: 'Truk', Icon: Truck },
+  { name: 'Bus', label: 'Bus', Icon: Bus },
+  { name: 'Bike', label: 'Motor/Sepeda', Icon: Bike },
+  { name: 'Fuel', label: 'Bensin', Icon: Fuel },
+  { name: 'Wrench', label: 'Servis Kendaraan', Icon: Wrench },
+  { name: 'Plane', label: 'Liburan', Icon: Plane },
+  { name: 'MapPin', label: 'Jalan-jalan', Icon: MapPin },
+  { name: 'Map', label: 'Wisata', Icon: MapIcon },
+  { name: 'Compass', label: 'Petualangan', Icon: Compass },
+  { name: 'Mountain', label: 'Mendaki', Icon: Mountain },
+  { name: 'Tent', label: 'Camping', Icon: Tent },
+  { name: 'Home', label: 'Rumah', Icon: Home },
+  { name: 'Briefcase', label: 'Kerja', Icon: Briefcase },
+  { name: 'Gamepad2', label: 'Gaming', Icon: Gamepad2 },
+  { name: 'Heart', label: 'Kesehatan', Icon: Heart },
+  { name: 'Dumbbell', label: 'Olahraga', Icon: Dumbbell },
+  { name: 'Music', label: 'Hiburan', Icon: Music },
+  { name: 'BookOpen', label: 'Pendidikan', Icon: BookOpen },
+  { name: 'Gift', label: 'Hadiah', Icon: Gift },
+  { name: 'Zap', label: 'Listrik', Icon: Zap },
+  { name: 'Flame', label: 'Gas', Icon: Flame },
+  { name: 'Umbrella', label: 'Asuransi', Icon: Umbrella },
+  { name: 'Smartphone', label: 'Pulsa', Icon: Smartphone },
+  { name: 'Monitor', label: 'Teknologi', Icon: Monitor },
+  { name: 'CreditCard', label: 'Tagihan', Icon: CreditCard },
+  { name: 'Banknote', label: 'Uang Tunai', Icon: Banknote },
+  { name: 'PiggyBank', label: 'Tabungan', Icon: PiggyBank },
+  { name: 'TrendingUp', label: 'Investasi', Icon: TrendingUp },
+  { name: 'Globe', label: 'Internet', Icon: Globe },
+  { name: 'Package', label: 'Paket/Logistik', Icon: Package },
+  { name: 'Baby', label: 'Anak', Icon: Baby },
+  { name: 'Dog', label: 'Hewan Peliharaan', Icon: Dog },
+  { name: 'Trees', label: 'Alam', Icon: Trees },
+  { name: 'Shirt', label: 'Pakaian', Icon: Shirt },
+  { name: 'Scissors', label: 'Perawatan', Icon: Scissors },
+  { name: 'Star', label: 'Lain-lain', Icon: Star },
+];
+
+function IconPicker({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {AVAILABLE_ICONS.map(({ name, label, Icon }) => (
+        <button
+          key={name}
+          type="button"
+          title={label}
+          onClick={() => onChange(name)}
+          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border-2 ${
+            value === name
+              ? 'border-primary bg-primary/10 scale-110'
+              : 'border-transparent bg-accent hover:bg-accent/80'
+          }`}
+        >
+          <Icon size={18} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CategoryIcon({ icon, color }: { icon?: string | null; color: string }) {
+  const found = AVAILABLE_ICONS.find(i => i.name === icon);
+  const Icon = found?.Icon || Tag;
+  return (
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: color + '22' }}>
+      <Icon size={16} style={{ color }} />
+    </div>
+  );
+}
+
 export function CategoriesPage() {
   const { categories, addCategory, refreshCategories } = useWalletCategory();
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(COLORS[0]);
   const [newType, setNewType] = useState<'expense' | 'income'>('expense');
+  const [newIcon, setNewIcon] = useState('Tag');
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
+  const [editIcon, setEditIcon] = useState('Tag');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const expenseCategories = categories.filter(c => c.type === 'expense');
@@ -26,11 +119,11 @@ export function CategoriesPage() {
   const handleAdd = async () => {
     if (!newName.trim()) return;
     setSaving(true);
-    const result = await addCategory({ name: newName.trim(), icon: 'Tag', color: newColor, type: newType });
+    const result = await addCategory({ name: newName.trim(), icon: newIcon, color: newColor, type: newType });
     setSaving(false);
     if (result) {
       toast.success('Category added!');
-      setNewName(''); setIsAdding(false);
+      setNewName(''); setNewIcon('Tag'); setIsAdding(false);
     } else {
       toast.error('Failed to add category');
     }
@@ -38,7 +131,7 @@ export function CategoriesPage() {
 
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return;
-    const { error } = await supabase.from('transaction_categories').update({ name: editName.trim(), color: editColor }).eq('id', id);
+    const { error } = await supabase.from('transaction_categories').update({ name: editName.trim(), color: editColor, icon: editIcon }).eq('id', id);
     if (error) { toast.error('Failed to update'); return; }
     await refreshCategories();
     toast.success('Category updated!');
@@ -64,31 +157,40 @@ export function CategoriesPage() {
           <div className="divide-y divide-border">
             {items.map(cat => (
               <div key={cat.id} className="p-4 flex items-center gap-4">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: cat.color + '22' }}>
-                  <Tag size={16} style={{ color: cat.color }} />
-                </div>
+                <CategoryIcon icon={cat.icon} color={cat.color} />
                 {editingId === cat.id ? (
-                  <div className="flex-1 flex items-center gap-2">
+                  <div className="flex-1 flex flex-col gap-3">
                     <input
                       type="text" autoFocus value={editName} onChange={e => setEditName(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleUpdate(cat.id); if (e.key === 'Escape') setEditingId(null); }}
                       className="flex-1 bg-accent/50 border-none rounded-xl py-2 px-3 font-bold outline-none focus:ring-2 ring-primary/20 text-sm"
                     />
-                    <div className="flex gap-1">
-                      {COLORS.map(c => (
-                        <button key={c} type="button" onClick={() => setEditColor(c)}
-                          className={`w-5 h-5 rounded-full border-2 ${editColor === c ? 'border-foreground scale-125' : 'border-transparent'}`}
-                          style={{ backgroundColor: c }} />
-                      ))}
+                    {/* Color picker */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-muted-foreground shrink-0">Warna:</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {COLORS.map(c => (
+                          <button key={c} type="button" onClick={() => setEditColor(c)}
+                            className={`w-5 h-5 rounded-full border-2 ${editColor === c ? 'border-foreground scale-125' : 'border-transparent'}`}
+                            style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
                     </div>
-                    <button onClick={() => handleUpdate(cat.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={15} /></button>
-                    <button onClick={() => setEditingId(null)} className="p-1.5 text-muted-foreground hover:bg-accent rounded-lg"><X size={15} /></button>
+                    {/* Icon picker */}
+                    <div>
+                      <span className="text-xs font-bold text-muted-foreground block mb-1.5">Icon:</span>
+                      <IconPicker value={editIcon} onChange={setEditIcon} />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleUpdate(cat.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-lg border border-emerald-200"><Check size={14} /> Simpan</button>
+                      <button onClick={() => setEditingId(null)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-muted-foreground hover:bg-accent rounded-lg border border-border"><X size={14} /> Batal</button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex-1 flex items-center justify-between">
                     <p className="font-bold text-sm">{cat.name}</p>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => { setEditingId(cat.id); setEditName(cat.name); setEditColor(cat.color); }}
+                      <button onClick={() => { setEditingId(cat.id); setEditName(cat.name); setEditColor(cat.color); setEditIcon(cat.icon || 'Tag'); }}
                         className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-colors">
                         <Pencil size={15} />
                       </button>
@@ -148,6 +250,7 @@ export function CategoriesPage() {
                 placeholder="Nama kategori (e.g. Makan, Transport...)"
                 className="w-full bg-accent/50 border-none rounded-xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
               />
+              {/* Color picker */}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-muted-foreground">Warna:</span>
                 {COLORS.map(c => (
@@ -156,12 +259,22 @@ export function CategoriesPage() {
                     style={{ backgroundColor: c }} />
                 ))}
               </div>
+              {/* Icon picker */}
+              <div>
+                <span className="text-xs font-bold text-muted-foreground block mb-2">Pilih Icon:</span>
+                <IconPicker value={newIcon} onChange={setNewIcon} />
+              </div>
+              {/* Preview */}
+              <div className="flex items-center gap-2 p-3 bg-accent/40 rounded-xl">
+                <CategoryIcon icon={newIcon} color={newColor} />
+                <span className="font-bold text-sm">{newName || 'Preview...'}</span>
+              </div>
               <div className="flex gap-2">
                 <button onClick={handleAdd} disabled={saving || !newName.trim()}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold disabled:opacity-50 transition-all">
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Simpan
                 </button>
-                <button onClick={() => { setIsAdding(false); setNewName(''); }}
+                <button onClick={() => { setIsAdding(false); setNewName(''); setNewIcon('Tag'); }}
                   className="px-4 py-2.5 bg-accent text-muted-foreground rounded-xl font-bold hover:bg-accent/80 transition-all">
                   Batal
                 </button>

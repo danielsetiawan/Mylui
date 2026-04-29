@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  Plus, Search, ArrowUpRight, ArrowDownRight, Calendar, Tag, Trash2,
-  ChevronUp, ChevronDown, ArrowRightLeft, CalendarDays, Edit2, ListTree, X, Save, Wallet, Link2
+  Plus, Search, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, Tag, Wallet,
+  ChevronUp, ChevronDown, CalendarDays, ListTree, X, Link2,
+  ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
+  Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
+  Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
+  Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Map as MapIcon, Compass, Mountain,
+  Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
@@ -19,13 +24,16 @@ export function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
+  const [filterMonthYear, setFilterMonthYear] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [filterIncomeId, setFilterIncomeId] = useState<string>('all');
+  const [monthIncomes, setMonthIncomes] = useState<{ id: string, description: string, amount: number }[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
-  const currentDate = new Date();
-  const defaultMonthYear = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-  const [filterMonthYear, setFilterMonthYear] = useState<string>(defaultMonthYear);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [stats, setStats] = useState({ income: 0, expense: 0, balance: 0 });
 
@@ -46,7 +54,28 @@ export function Transactions() {
       fetchTransactions(false);
       fetchStats();
     }
-  }, [user, filterType, filterMonthYear, debouncedSearchTerm]);
+  }, [user, filterType, filterMonthYear, filterIncomeId, debouncedSearchTerm]);
+
+  useEffect(() => {
+    if (user && filterMonthYear) {
+      const fetchIncomes = async () => {
+        const [year, month] = filterMonthYear.split('-').map(Number);
+        const lastDay = new Date(year, month, 0).getDate();
+        const { data } = await supabase
+          .from('transactions')
+          .select('id, description, amount')
+          .eq('user_id', user.id)
+          .eq('type', 'income')
+          .gte('date', `${filterMonthYear}-01`)
+          .lte('date', `${filterMonthYear}-${lastDay}`)
+          .order('date', { ascending: false });
+        if (data) setMonthIncomes(data as any[]);
+      };
+      fetchIncomes();
+    } else {
+      setMonthIncomes([]);
+    }
+  }, [user, filterMonthYear]);
 
   const fetchStats = async () => {
     if (!user) return;
@@ -58,6 +87,10 @@ export function Transactions() {
         const [year, month] = filterMonthYear.split('-').map(Number);
         const lastDay = new Date(year, month, 0).getDate();
         query = query.gte('date', `${filterMonthYear}-01`).lte('date', `${filterMonthYear}-${lastDay}`);
+      }
+
+      if (filterIncomeId !== 'all') {
+        query = query.or(`id.eq.${filterIncomeId},linked_income_id.eq.${filterIncomeId}`);
       }
 
       const { data, error } = await query;
@@ -93,7 +126,13 @@ export function Transactions() {
         const lastDay = new Date(year, month, 0).getDate();
         query = query.gte('date', `${filterMonthYear}-01`).lte('date', `${filterMonthYear}-${lastDay}`);
       }
+
+      if (filterIncomeId !== 'all') {
+        query = query.or(`id.eq.${filterIncomeId},linked_income_id.eq.${filterIncomeId}`);
+      }
+
       if (debouncedSearchTerm) {
+        // use an explicit filter string for search so it doesn't conflict with the or above
         query = query.or(`description.ilike.%${debouncedSearchTerm}%,category.ilike.%${debouncedSearchTerm}%`);
       }
 
@@ -187,26 +226,53 @@ export function Transactions() {
 
   const formatMonthYear = useCallback((dateString: string) => {
     const d = new Date(dateString + 'T00:00:00');
-    return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(d);
+    return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(d);
+  }, []);
+
+  const formatDateHeader = useCallback((dateString: string) => {
+    const d = new Date(dateString + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const options = { day: 'numeric', month: 'long', year: 'numeric' } as const;
+    const dateFmt = new Intl.DateTimeFormat('en-GB', options).format(d).toUpperCase();
+
+    if (d.getTime() === today.getTime()) {
+      return `TODAY, ${dateFmt}`;
+    } else if (d.getTime() === yesterday.getTime()) {
+      return `YESTERDAY, ${dateFmt}`;
+    } else {
+      const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'long' }).format(d).toUpperCase();
+      return `${weekday}, ${dateFmt}`;
+    }
   }, []);
 
   // Month options come from global MonthRangeContext (fetched once at app load)
 
-  const groupedTransactions = useMemo(() => transactions.reduce((acc, transaction) => {
-    const groupKey = formatMonthYear(transaction.date);
-    if (!acc[groupKey]) acc[groupKey] = [];
-    acc[groupKey].push(transaction);
-    return acc;
-  }, {} as Record<string, Transaction[]>), [transactions, formatMonthYear]);
+  const groupedList = useMemo(() => {
+    const months: { month: string, days: { date: string, label: string, transactions: Transaction[] }[] }[] = [];
 
-  const flattenedList = useMemo(() => {
-    const list: (Transaction | { isHeader: true, title: string, count: number })[] = [];
-    Object.entries(groupedTransactions).forEach(([groupKey, groupTransactions]) => {
-      list.push({ isHeader: true, title: groupKey, count: groupTransactions.length });
-      list.push(...groupTransactions);
+    transactions.forEach(transaction => {
+      const monthStr = formatMonthYear(transaction.date);
+      let monthGroup = months.find(m => m.month === monthStr);
+      if (!monthGroup) {
+        monthGroup = { month: monthStr, days: [] };
+        months.push(monthGroup);
+      }
+
+      let dayGroup = monthGroup.days.find(d => d.date === transaction.date);
+      if (!dayGroup) {
+        dayGroup = { date: transaction.date, label: formatDateHeader(transaction.date), transactions: [] };
+        monthGroup.days.push(dayGroup);
+      }
+
+      dayGroup.transactions.push(transaction);
     });
-    return list;
-  }, [groupedTransactions]);
+
+    return months;
+  }, [transactions, formatMonthYear, formatDateHeader]);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const observerTarget = useCallback((node: HTMLDivElement | null) => {
@@ -262,23 +328,47 @@ export function Transactions() {
       />
 
       {/* Filters & Search */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
-          <input
-            type="text"
-            placeholder="Search activity..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-card border border-border rounded-2xl py-3 pl-11 pr-10 font-bold outline-none focus:ring-2 ring-primary/20 transition-all"
-          />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-              <X size={16} />
-            </button>
+      <div className="flex flex-col xl:flex-row gap-4">
+        {/* Left Side: Search & Income Filter */}
+        <div className="flex flex-1 flex-col sm:flex-row gap-2">
+          <div className="flex-1 relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
+            <input
+              type="text"
+              placeholder="Search activity..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-card border border-border rounded-2xl py-3 pl-11 pr-10 font-bold outline-none focus:ring-2 ring-primary/20 transition-all h-full"
+            />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {monthIncomes.length > 0 && filterMonthYear && (
+            <div className="relative w-full sm:w-auto sm:min-w-[180px] sm:max-w-[220px] shrink-0">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+                <Link2 size={16} />
+              </div>
+              <select
+                value={filterIncomeId}
+                onChange={(e) => setFilterIncomeId(e.target.value)}
+                className="w-full h-full bg-primary/5 border border-primary/20 text-primary rounded-2xl py-3 pl-9 pr-4 text-sm font-bold outline-none focus:ring-2 ring-primary/30 cursor-pointer appearance-none"
+              >
+                <option value="all">Semua Pemasukan</option>
+                {monthIncomes.map((inc) => (
+                  <option key={inc.id} value={inc.id}>
+                    {inc.description || 'Pemasukan'}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 
+        {/* Right Side: Month & Type filters */}
         <div className="flex flex-wrap md:flex-nowrap gap-2 shrink-0">
           <div className="relative flex-1 md:flex-none min-w-0">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
@@ -286,7 +376,10 @@ export function Transactions() {
             </div>
             <select
               value={filterMonthYear}
-              onChange={(e) => setFilterMonthYear(e.target.value)}
+              onChange={(e) => {
+                setFilterMonthYear(e.target.value);
+                setFilterIncomeId('all'); // Reset income filter on month change
+              }}
               className="w-full bg-card border border-border rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20 cursor-pointer h-full md:min-w-[170px] appearance-none"
             >
               <option value="">All Time</option>
@@ -310,9 +403,15 @@ export function Transactions() {
           {(['income', 'expense'] as const).map(t => {
             const total = t === 'income' ? stats.income : stats.expense;
             return (
-              <div key={t} className={`p-2 sm:p-3 rounded-2xl border ${t === 'income' ? 'bg-emerald-50 border-emerald-150' : 'bg-rose-50 border-rose-150'} overflow-hidden`}>
-                <p className={`text-[10px] font-bold truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
-                <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+              <div key={t} className={`p-2 sm:p-3 rounded-2xl border overflow-hidden ${t === 'income'
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20'
+                : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20'
+                }`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  {t === 'income' ? <ArrowUpRight size={14} className="text-emerald-600" /> : <ArrowDownRight size={14} className="text-rose-600" />}
+                  <p className={`text-[10px] font-bold truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
+                </div>
+                <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                   <span className="sm:hidden">{formatCompactCurrency(total)}</span>
                   <span className="hidden sm:inline">{formatCurrency(total)}</span>
                 </div>
@@ -320,7 +419,10 @@ export function Transactions() {
             );
           })}
           <div className="p-2 sm:p-3 rounded-2xl border bg-card border-border overflow-hidden">
-            <p className="text-[10px] font-bold text-muted-foreground truncate">Balance</p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Wallet size={14} className="text-muted-foreground" />
+              <p className="text-[10px] font-bold text-muted-foreground truncate">Balance</p>
+            </div>
             <div title={formatCurrency(stats.balance)} className={`text-xs sm:text-sm font-black truncate ${stats.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               <span className="sm:hidden">{formatCompactCurrency(stats.balance)}</span>
               <span className="hidden sm:inline">{formatCurrency(stats.balance)}</span>
@@ -330,36 +432,49 @@ export function Transactions() {
       )}
 
       {/* Transaction List */}
-      <div className="bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+      <div className="space-y-8">
         {loading && transactions.length === 0 ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
           </div>
         ) : transactions.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground">No transactions found.</div>
+          <div className="p-12 text-center text-muted-foreground bg-card border border-border rounded-3xl">No transactions found.</div>
         ) : (
-          <div className="divide-y divide-border">
-            {flattenedList.map((item) => {
-              if ('isHeader' in item) {
-                return (
-                  <div key={`header-${item.title}`} className="bg-accent/40 px-6 py-3 sticky top-0 backdrop-blur-md z-10 border-b border-border flex items-center justify-between">
-                    <h3 className="text-sm font-black text-muted-foreground">{item.title}</h3>
-                    <span className="text-[10px] font-bold text-muted-foreground bg-background px-2 py-0.5 rounded-full border border-border">{item.count} Transactions</span>
-                  </div>
-                );
-              }
-              return (
-                <TransactionItem
-                  key={item.id}
-                  transaction={item as Transaction}
-                  onEdit={() => handleEditInit(item as Transaction)}
-                  onDelete={() => setTransactionToDelete((item as Transaction).id)}
-                  formatCurrency={formatCurrency}
-                  formatCompactCurrency={formatCompactCurrency}
-                  searchTerm={debouncedSearchTerm}
-                />
-              );
-            })}
+          <div className="space-y-8">
+            {groupedList.map((monthGroup) => (
+              <div key={monthGroup.month} className="space-y-6">
+                {/* Month Header */}
+                <div className="flex items-center gap-4">
+                  <h2 className="text-xl font-black shrink-0">{monthGroup.month}</h2>
+                  <div className="flex-1 h-px bg-border"></div>
+                </div>
+
+                {/* Days */}
+                <div className="space-y-6">
+                  {monthGroup.days.map((dayGroup) => (
+                    <div key={dayGroup.date} className="space-y-3">
+                      {/* Date Header */}
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{dayGroup.label}</h3>
+
+                      {/* Transactions Box */}
+                      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden divide-y divide-border">
+                        {dayGroup.transactions.map((transaction) => (
+                          <TransactionItem
+                            key={transaction.id}
+                            transaction={transaction}
+                            onEdit={() => handleEditInit(transaction)}
+                            onDelete={() => setTransactionToDelete(transaction.id)}
+                            formatCurrency={formatCurrency}
+                            formatCompactCurrency={formatCompactCurrency}
+                            searchTerm={debouncedSearchTerm}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
 
             <div ref={observerTarget} className="h-4 w-full" />
             {loadingMore && (
@@ -401,6 +516,21 @@ function HighlightMatch({ text, match }: { text: string, match: string }) {
   );
 }
 
+// Maps icon name string (stored in DB) to a Lucide icon component
+const ICON_MAP: Record<string, React.ElementType> = {
+  Tag, ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
+  Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
+  Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star, ArrowUpRight, ArrowDownRight,
+  ArrowRightLeft, Wallet, Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Compass,
+  Mountain, Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
+  Map: MapIcon,
+};
+
+function getCategoryIcon(iconName?: string | null): React.ElementType {
+  if (iconName && ICON_MAP[iconName]) return ICON_MAP[iconName];
+  return Tag;
+}
+
 function FilterButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
     <button
@@ -410,9 +540,7 @@ function FilterButton({ active, onClick, label }: { active: boolean, onClick: ()
       {label}
     </button>
   );
-}
-
-function TransactionItem({
+} function TransactionItem({
   transaction, onEdit, onDelete, formatCurrency, formatCompactCurrency, searchTerm
 }: {
   transaction: Transaction, onEdit: () => void, onDelete: () => void, formatCurrency: (v: number) => string, formatCompactCurrency: (v: number) => string, searchTerm: string
@@ -421,31 +549,29 @@ function TransactionItem({
 
   const isTransfer = transaction.type === 'transfer';
 
-  // Description (migrated from old 'category' text) is the primary display title
-  // Category name becomes a secondary badge
   const displayName = transaction.description
     || transaction.transaction_category?.name
     || transaction.category
     || '—';
 
   const categoryBadgeName = transaction.transaction_category?.name;
+  const CategoryIcon = getCategoryIcon(transaction.transaction_category?.icon);
 
   return (
     <div onClick={onEdit} className="p-4 md:p-6 hover:bg-accent/30 transition-colors group cursor-pointer">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-2xl shrink-0 ${isTransfer ? 'bg-blue-50 text-blue-600'
-            : transaction.type === 'income' ? 'bg-emerald-50 text-emerald-600'
-              : 'bg-rose-50 text-rose-600'
+          <div className={`p-3 rounded-2xl shrink-0 ${isTransfer ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+            : transaction.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+              : 'bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400'
             }`}>
-            {isTransfer ? <ArrowRightLeft size={24} /> : transaction.type === 'income' ? <ArrowUpRight size={24} /> : <ArrowDownRight size={24} />}
+            {isTransfer ? <ArrowRightLeft size={24} /> : <CategoryIcon size={24} />}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="font-black text-base line-clamp-1 break-all">
                 <HighlightMatch text={displayName} match={searchTerm} />
               </h4>
-              {/* Transfer badge */}
               {isTransfer && (
                 <span className="text-[10px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold shrink-0">
                   <ArrowRightLeft size={10} /> Transfer
@@ -456,7 +582,6 @@ function TransactionItem({
               <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                 <Calendar size={12} /> {transaction.date.split('-').reverse().join('/')}
               </span>
-              {/* Wallet info */}
               {transaction.wallet && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                   <Wallet size={12} />
@@ -465,14 +590,12 @@ function TransactionItem({
                     : transaction.wallet.name}
                 </span>
               )}
-              {/* Category info */}
               {categoryBadgeName && transaction.description && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                   <Tag size={12} />
                   {categoryBadgeName}
                 </span>
               )}
-              {/* Linked income badge */}
               {transaction.linked_income && (
                 <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                   <Link2 size={10} />
@@ -485,9 +608,9 @@ function TransactionItem({
 
         <div className="flex items-center gap-2 sm:gap-4 ml-4 shrink-0">
           <div className="text-right">
-            <div title={formatCurrency(transaction.amount)} className={`font-black text-sm sm:text-lg whitespace-nowrap ${isTransfer ? 'text-blue-600'
-              : transaction.type === 'income' ? 'text-emerald-600'
-                : 'text-rose-600'
+            <div title={formatCurrency(transaction.amount)} className={`font-black text-sm sm:text-lg whitespace-nowrap ${isTransfer ? 'text-blue-600 dark:text-blue-400'
+              : transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-rose-600 dark:text-rose-400'
               }`}>
               {isTransfer ? '' : transaction.type === 'income' ? '+' : '-'}
               <span className="sm:hidden">{formatCompactCurrency(transaction.amount).replace('Rp ', '')}</span>
