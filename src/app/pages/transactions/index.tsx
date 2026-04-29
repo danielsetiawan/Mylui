@@ -346,7 +346,33 @@ export function Transactions() {
               </button>
             )}
           </div>
+          <div className="relative flex-1 md:flex-none min-w-0">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+              <CalendarDays size={18} />
+            </div>
+            <select
+              value={filterMonthYear}
+              onChange={(e) => {
+                setFilterMonthYear(e.target.value);
+                setFilterIncomeId('all'); // Reset income filter on month change
+              }}
+              className="w-full bg-card border border-border rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20 cursor-pointer h-full md:min-w-[170px] appearance-none"
+            >
+              <option value="">All Time</option>
+              {monthOptions.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
+        {/* Right Side: Month & Type filters */}
+        <div className="flex flex-wrap md:flex-nowrap gap-2 shrink-0">
+          <div className="flex flex-1 md:flex-none p-1 bg-card border border-border rounded-2xl md:w-fit justify-between">
+            <FilterButton active={filterType === 'all'} onClick={() => setFilterType('all')} label="All" />
+            <FilterButton active={filterType === 'income'} onClick={() => setFilterType('income')} label="In" />
+            <FilterButton active={filterType === 'expense'} onClick={() => setFilterType('expense')} label="Out" />
+          </div>
           {monthIncomes.length > 0 && filterMonthYear && (
             <div className="relative w-full sm:w-auto sm:min-w-[180px] sm:max-w-[220px] shrink-0">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
@@ -367,34 +393,6 @@ export function Transactions() {
             </div>
           )}
         </div>
-
-        {/* Right Side: Month & Type filters */}
-        <div className="flex flex-wrap md:flex-nowrap gap-2 shrink-0">
-          <div className="relative flex-1 md:flex-none min-w-0">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-              <CalendarDays size={18} />
-            </div>
-            <select
-              value={filterMonthYear}
-              onChange={(e) => {
-                setFilterMonthYear(e.target.value);
-                setFilterIncomeId('all'); // Reset income filter on month change
-              }}
-              className="w-full bg-card border border-border rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20 cursor-pointer h-full md:min-w-[170px] appearance-none"
-            >
-              <option value="">All Time</option>
-              {monthOptions.map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-1 md:flex-none p-1 bg-card border border-border rounded-2xl md:w-fit justify-between">
-            <FilterButton active={filterType === 'all'} onClick={() => setFilterType('all')} label="All" />
-            <FilterButton active={filterType === 'income'} onClick={() => setFilterType('income')} label="In" />
-            <FilterButton active={filterType === 'expense'} onClick={() => setFilterType('expense')} label="Out" />
-          </div>
-        </div>
       </div>
 
       {/* Summary Stats */}
@@ -408,10 +406,10 @@ export function Transactions() {
                 : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20'
                 }`}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  {t === 'income' ? <ArrowUpRight size={14} className="text-emerald-600" /> : <ArrowDownRight size={14} className="text-rose-600" />}
-                  <p className={`text-[10px] font-bold truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
+                  {t === 'income' ? <ArrowUpRight size={14} className="text-emerald-600 dark:text-emerald-600" /> : <ArrowDownRight size={14} className="text-rose-600 dark:text-rose-400" />}
+                  <p className={`text-[10px] font-bold truncate ${t === 'income' ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
                 </div>
-                <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
                   <span className="sm:hidden">{formatCompactCurrency(total)}</span>
                   <span className="hidden sm:inline">{formatCurrency(total)}</span>
                 </div>
@@ -423,7 +421,7 @@ export function Transactions() {
               <Wallet size={14} className="text-muted-foreground" />
               <p className="text-[10px] font-bold text-muted-foreground truncate">Balance</p>
             </div>
-            <div title={formatCurrency(stats.balance)} className={`text-xs sm:text-sm font-black truncate ${stats.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            <div title={formatCurrency(stats.balance)} className={`text-xs sm:text-sm font-black truncate ${stats.balance >= 0 ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
               <span className="sm:hidden">{formatCompactCurrency(stats.balance)}</span>
               <span className="hidden sm:inline">{formatCurrency(stats.balance)}</span>
             </div>

@@ -51,9 +51,9 @@ export function Layout() {
         .from('profiles')
         .update({ full_name: newFullName })
         .eq('id', user?.id);
-      
+
       if (error) throw error;
-      
+
       toast.success('Profile updated!');
       setIsEditingProfile(false);
       if (refreshProfile) refreshProfile();
@@ -100,7 +100,7 @@ export function Layout() {
               </div>
             </div>
             <div className="h-px bg-border/50 w-full mb-3" />
-            <button 
+            <button
               onClick={() => { setIsEditingProfile(true); setNewFullName(profile?.full_name || ''); }}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
             >
@@ -200,7 +200,7 @@ export function Layout() {
       <AnimatePresence>
         {isEditingProfile && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsEditingProfile(false)}>
-            <motion.div 
+            <motion.div
               onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -216,9 +216,9 @@ export function Layout() {
               <form onSubmit={handleUpdateProfile} className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-xs font-black text-muted-foreground">Full Name</label>
-                  <input 
-                    type="text" 
-                    value={newFullName} 
+                  <input
+                    type="text"
+                    value={newFullName}
                     onChange={(e) => setNewFullName(e.target.value)}
                     placeholder="Enter your name"
                     className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
