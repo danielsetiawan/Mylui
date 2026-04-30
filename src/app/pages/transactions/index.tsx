@@ -383,7 +383,7 @@ export function Transactions() {
                 onChange={(e) => setFilterIncomeId(e.target.value)}
                 className="w-full h-full bg-primary/5 border border-primary/20 text-primary rounded-2xl py-3 pl-9 pr-4 text-sm font-bold outline-none focus:ring-2 ring-primary/30 cursor-pointer appearance-none"
               >
-                <option value="all">Semua Pemasukan</option>
+                <option value="all">All Income</option>
                 {monthIncomes.map((inc) => (
                   <option key={inc.id} value={inc.id}>
                     {inc.description || 'Pemasukan'}
