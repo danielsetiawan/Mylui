@@ -5,7 +5,8 @@ import {
   Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
   Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
   Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Map as MapIcon, Compass, Mountain,
-  Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent
+  Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
+  Coins, Receipt, Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
@@ -29,9 +30,9 @@ const AVAILABLE_ICONS: { name: string; label: string; Icon: React.ElementType }[
   { name: 'Sandwich', label: 'Fast Food', Icon: Sandwich },
   { name: 'Soup', label: 'Makanan Berat', Icon: Soup },
   { name: 'Car', label: 'Mobil', Icon: Car },
+  { name: 'Bike', label: 'Motor', Icon: Bike },
   { name: 'Truck', label: 'Truk', Icon: Truck },
   { name: 'Bus', label: 'Bus', Icon: Bus },
-  { name: 'Bike', label: 'Motor/Sepeda', Icon: Bike },
   { name: 'Fuel', label: 'Bensin', Icon: Fuel },
   { name: 'Wrench', label: 'Servis Kendaraan', Icon: Wrench },
   { name: 'Plane', label: 'Liburan', Icon: Plane },
@@ -54,7 +55,10 @@ const AVAILABLE_ICONS: { name: string; label: string; Icon: React.ElementType }[
   { name: 'Smartphone', label: 'Pulsa', Icon: Smartphone },
   { name: 'Monitor', label: 'Teknologi', Icon: Monitor },
   { name: 'CreditCard', label: 'Tagihan', Icon: CreditCard },
+  { name: 'Receipt', label: 'Struk/Nota', Icon: Receipt },
   { name: 'Banknote', label: 'Uang Tunai', Icon: Banknote },
+  { name: 'Coins', label: 'Tarik Tunai', Icon: Coins },
+  { name: 'Landmark', label: 'Bank', Icon: Landmark },
   { name: 'PiggyBank', label: 'Tabungan', Icon: PiggyBank },
   { name: 'TrendingUp', label: 'Investasi', Icon: TrendingUp },
   { name: 'Globe', label: 'Internet', Icon: Globe },
@@ -76,11 +80,10 @@ function IconPicker({ value, onChange }: { value: string; onChange: (name: strin
           type="button"
           title={label}
           onClick={() => onChange(name)}
-          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border-2 ${
-            value === name
+          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border-2 ${value === name
               ? 'border-primary bg-primary/10 scale-110'
               : 'border-transparent bg-accent hover:bg-accent/80'
-          }`}
+            }`}
         >
           <Icon size={18} />
         </button>

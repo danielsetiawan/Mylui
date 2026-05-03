@@ -6,7 +6,8 @@ import {
   Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
   Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
   Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Map as MapIcon, Compass, Mountain,
-  Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent
+  Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
+  Repeat, Coins, Receipt, Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
@@ -329,24 +330,24 @@ export function Transactions() {
 
       {/* Filters & Search */}
       <div className="flex flex-col xl:flex-row gap-4">
-        {/* Left Side: Search & Income Filter */}
-        <div className="flex flex-1 flex-col sm:flex-row gap-2">
-          <div className="flex-1 relative group">
+        {/* Left Side: Search & Date Filter */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-1 gap-2">
+          <div className="relative group sm:flex-1 min-w-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
             <input
               type="text"
               placeholder="Search activity..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-card border border-border rounded-2xl py-3 pl-11 pr-10 font-bold outline-none focus:ring-2 ring-primary/20 transition-all h-full"
+              className="w-full bg-card border border-border rounded-2xl py-3 pl-11 pr-4 sm:pr-10 font-bold outline-none focus:ring-2 ring-primary/20 transition-all h-full min-w-0"
             />
             {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground hidden sm:block">
                 <X size={16} />
               </button>
             )}
           </div>
-          <div className="relative flex-1 md:flex-none min-w-0">
+          <div className="relative sm:flex-1 md:flex-none min-w-0">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
               <CalendarDays size={18} />
             </div>
@@ -366,15 +367,15 @@ export function Transactions() {
           </div>
         </div>
 
-        {/* Right Side: Month & Type filters */}
-        <div className="flex flex-wrap md:flex-nowrap gap-2 shrink-0">
-          <div className="flex flex-1 md:flex-none p-1 bg-card border border-border rounded-2xl md:w-fit justify-between">
+        {/* Right Side: Type & Income filters */}
+        <div className="grid grid-cols-2 sm:flex gap-2 shrink-0 w-full xl:w-auto">
+          <div className="flex p-1 bg-card border border-border rounded-2xl md:w-fit justify-between sm:flex-1 md:flex-none">
             <FilterButton active={filterType === 'all'} onClick={() => setFilterType('all')} label="All" />
             <FilterButton active={filterType === 'income'} onClick={() => setFilterType('income')} label="In" />
             <FilterButton active={filterType === 'expense'} onClick={() => setFilterType('expense')} label="Out" />
           </div>
           {monthIncomes.length > 0 && filterMonthYear && (
-            <div className="relative w-full sm:w-auto sm:min-w-[180px] sm:max-w-[220px] shrink-0">
+            <div className="relative sm:flex-1 md:flex-none sm:min-w-[180px] sm:max-w-[220px] shrink-0">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
                 <Link2 size={16} />
               </div>
@@ -521,7 +522,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star, ArrowUpRight, ArrowDownRight,
   ArrowRightLeft, Wallet, Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Compass,
   Mountain, Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
-  Map: MapIcon,
+  Map: MapIcon, Repeat, Coins, Receipt, Landmark
 };
 
 function getCategoryIcon(iconName?: string | null): React.ElementType {
@@ -563,7 +564,7 @@ function FilterButton({ active, onClick, label }: { active: boolean, onClick: ()
             : transaction.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
               : 'bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400'
             }`}>
-            {isTransfer ? <ArrowRightLeft size={24} /> : <CategoryIcon size={24} />}
+            {isTransfer ? <Repeat size={24} /> : <CategoryIcon size={24} />}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -572,7 +573,7 @@ function FilterButton({ active, onClick, label }: { active: boolean, onClick: ()
               </h4>
               {isTransfer && (
                 <span className="text-[10px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold shrink-0">
-                  <ArrowRightLeft size={10} /> Transfer
+                  <Repeat size={10} /> Transfer
                 </span>
               )}
             </div>

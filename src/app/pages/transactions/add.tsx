@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, ArrowRightLeft, Link2, ListTree, X } from 'lucide-react';
+import { Plus, ArrowRightLeft, Link2, ListTree, X, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -114,7 +114,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
     `px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${tab === t
       ? t === 'income' ? 'bg-white shadow-sm text-emerald-600'
         : t === 'transfer' ? 'bg-white shadow-sm text-blue-600'
-        : 'bg-white shadow-sm text-rose-600'
+          : 'bg-white shadow-sm text-rose-600'
       : 'text-muted-foreground hover:text-foreground'}`;
 
   return (
@@ -136,7 +136,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
               <button type="button" onClick={() => setTab('expense')} className={tabStyle('expense')}>Expense</button>
               <button type="button" onClick={() => setTab('income')} className={tabStyle('income')}>Income</button>
               <button type="button" onClick={() => setTab('transfer')} className={tabStyle('transfer')}>
-                <span className="flex items-center gap-1"><ArrowRightLeft size={14} /> Transfer</span>
+                <span className="flex items-center gap-1"><Repeat size={14} /> Transfer</span>
               </button>
             </div>
 

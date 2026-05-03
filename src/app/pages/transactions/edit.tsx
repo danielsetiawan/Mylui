@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, ListTree, X, Save, Trash2, Plus, ArrowRightLeft, Link2 } from 'lucide-react';
+import { Edit2, ListTree, X, Save, Trash2, Plus, ArrowRightLeft, Link2, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { Transaction, TransactionType } from '../../lib/types';
@@ -145,13 +145,13 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
     `px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${editType === t
       ? t === 'income' ? 'bg-white shadow-sm text-emerald-600'
         : t === 'transfer' ? 'bg-white shadow-sm text-blue-600'
-        : 'bg-white shadow-sm text-rose-600'
+          : 'bg-white shadow-sm text-rose-600'
       : 'text-muted-foreground hover:text-foreground'}`;
 
   return (
     <AnimatePresence>
       {transaction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={onClose}>
           <motion.div
             onClick={e => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -175,7 +175,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                 <button type="button" onClick={() => setEditType('expense')} className={tabStyle('expense')}>Expense</button>
                 <button type="button" onClick={() => setEditType('income')} className={tabStyle('income')}>Income</button>
                 <button type="button" onClick={() => setEditType('transfer')} className={tabStyle('transfer')}>
-                  <span className="flex items-center gap-1"><ArrowRightLeft size={13} /> Transfer</span>
+                  <span className="flex items-center gap-1"><Repeat size={13} /> Transfer</span>
                 </button>
               </div>
 
