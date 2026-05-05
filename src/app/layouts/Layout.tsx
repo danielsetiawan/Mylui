@@ -187,7 +187,7 @@ export function Layout() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-card/95 backdrop-blur-xl border border-border/50 flex justify-around py-2 px-1 z-50 rounded-full shadow-2xl overflow-hidden">
         <MobileNavItem to="/" icon={<LayoutDashboard size={20} />} label="Home" />
-        <MobileNavItem to="/transactions" icon={<ReceiptText size={20} />} label="Trans" />
+        <MobileNavItem to="/transactions" icon={<ReceiptText size={20} />} label="Activity" />
         <MobileNavItem to="/planning" icon={<CalendarDays size={20} />} label="Plans" />
         <MobileNavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
         <MobileNavItem to="/split-bill" icon={<Split size={20} />} label="Split" />
