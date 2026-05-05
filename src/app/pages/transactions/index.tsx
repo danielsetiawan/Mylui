@@ -555,15 +555,24 @@ function FilterButton({ active, onClick, label }: { active: boolean, onClick: ()
 
   const categoryBadgeName = transaction.transaction_category?.name;
   const CategoryIcon = getCategoryIcon(transaction.transaction_category?.icon);
+  const categoryColor = !isTransfer ? transaction.transaction_category?.color : undefined;
 
   return (
     <div onClick={onEdit} className="p-4 md:p-6 hover:bg-accent/30 transition-colors group cursor-pointer">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-2xl shrink-0 ${isTransfer ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
-            : transaction.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-              : 'bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400'
-            }`}>
+          <div
+            className={`p-3 rounded-2xl shrink-0 ${
+              !categoryColor
+                ? (isTransfer
+                    ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                    : transaction.type === 'income'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400')
+                : ''
+            }`}
+            style={categoryColor ? { backgroundColor: categoryColor + '22', color: categoryColor } : undefined}
+          >
             {isTransfer ? <Repeat size={24} /> : <CategoryIcon size={24} />}
           </div>
           <div className="min-w-0">

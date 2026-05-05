@@ -14,7 +14,13 @@ import { useWalletCategory } from '../../contexts/WalletCategoryContext';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { toast } from 'sonner';
 
-const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+const COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#eab308',
+  '#84cc16', '#10b981', '#14b8a6', '#06b6d4',
+  '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6',
+  '#a855f7', '#d946ef', '#ec4899', '#f43f5e',
+  '#78716c', '#64748b', '#334155', '#1e293b',
+];
 
 // Available icons with labels
 const AVAILABLE_ICONS: { name: string; label: string; Icon: React.ElementType }[] = [
@@ -254,13 +260,15 @@ export function CategoriesPage() {
                 className="w-full bg-accent/50 border-none rounded-xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
               />
               {/* Color picker */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2">
                 <span className="text-xs font-bold text-muted-foreground">Warna:</span>
-                {COLORS.map(c => (
-                  <button key={c} type="button" onClick={() => setNewColor(c)}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform ${newColor === c ? 'scale-125 border-foreground' : 'border-transparent'}`}
-                    style={{ backgroundColor: c }} />
-                ))}
+                <div className="flex gap-2 flex-wrap">
+                  {COLORS.map(c => (
+                    <button key={c} type="button" onClick={() => setNewColor(c)}
+                      className={`w-6 h-6 rounded-full border-2 transition-transform ${newColor === c ? 'scale-125 border-foreground' : 'border-transparent'}`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
               </div>
               {/* Icon picker */}
               <div>
