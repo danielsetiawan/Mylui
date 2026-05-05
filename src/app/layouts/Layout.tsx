@@ -191,9 +191,9 @@ export function Layout() {
         <MobileNavItem to="/planning" icon={<CalendarDays size={20} />} label="Plans" />
         <MobileNavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
         <MobileNavItem to="/split-bill" icon={<Split size={20} />} label="Split" />
-        {profile?.role === 'admin' && (
+        {/* {profile?.role === 'admin' && (
           <MobileNavItem to="/init" icon={<DatabaseZap size={20} />} label="Init" />
-        )}
+        )} */}
       </nav>
 
       {/* Edit Profile Modal */}
