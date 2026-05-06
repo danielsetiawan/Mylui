@@ -8,7 +8,14 @@ import {
   ArrowDownRight,
   Plus,
   ReceiptText,
-  Target
+  Target,
+  Tag,
+  ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
+  Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, Bus, Bike,
+  Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
+  Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Map as MapIcon, Compass, Mountain,
+  Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
+  Repeat, Coins, Receipt, Landmark, ArrowRightLeft
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -23,6 +30,20 @@ import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Transaction, BudgetPlan } from '../lib/types';
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Tag, ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
+  Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
+  Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star, ArrowUpRight, ArrowDownRight,
+  ArrowRightLeft, Wallet, Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Compass,
+  Mountain, Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
+  Map: MapIcon, Repeat, Coins, Receipt, Landmark
+};
+
+function getCategoryIcon(iconName?: string | null): React.ElementType {
+  if (iconName && ICON_MAP[iconName]) return ICON_MAP[iconName];
+  return Tag;
+}
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -68,7 +89,7 @@ export function Dashboard() {
           // Recent transactions (last 6, any time) — for Recent list & chart
           supabase
             .from('transactions')
-            .select('*')
+            .select('*, transaction_category:transaction_categories!category_id(id,name,color,icon)')
             .eq('user_id', user.id)
             .order('date', { ascending: false })
             .limit(30),
@@ -291,7 +312,7 @@ export function Dashboard() {
         <div className="space-y-6">
           <div className="bg-card border border-border rounded-3xl p-6 shadow-sm h-full flex flex-col">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-lg">Recent Transactions</h3>
+              <h3 className="font-bold text-lg">Recent Activity</h3>
             </div>
             
             <div className="flex-1 space-y-4">
@@ -305,22 +326,36 @@ export function Dashboard() {
                   <p>No transactions yet</p>
                 </div>
               ) : (
-                allRecentTx.slice(0, 6).map((t) => (
-                  <div key={t.id} className="flex items-center justify-between group">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2.5 rounded-2xl ${t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                        {t.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                allRecentTx.slice(0, 6).map((t) => {
+                  const isTransfer = t.type === 'transfer';
+                  const categoryColor = !isTransfer ? t.transaction_category?.color : undefined;
+                  const CategoryIcon = getCategoryIcon(t.transaction_category?.icon);
+                  const displayName = t.description || t.transaction_category?.name || t.category || '—';
+                  const iconStyle = categoryColor
+                    ? { backgroundColor: categoryColor + '22', color: categoryColor }
+                    : undefined;
+                  const iconClass = !categoryColor
+                    ? (isTransfer ? 'bg-blue-50 text-blue-600' : t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600')
+                    : '';
+                  return (
+                    <div key={t.id} className="flex items-center justify-between gap-3 group">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`p-2.5 rounded-2xl shrink-0 ${iconClass}`} style={iconStyle}>
+                          {isTransfer ? <Repeat size={18} /> : <CategoryIcon size={18} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold leading-tight truncate">{displayName}</p>
+                          <p className="text-[10px] text-muted-foreground">{new Date(t.date + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold leading-tight">{t.category}</p>
-                        <p className="text-[10px] text-muted-foreground">{new Date(t.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
-                      </div>
+                      <span className={`text-sm font-extrabold whitespace-nowrap ${
+                        isTransfer ? 'text-blue-600' : t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
+                      }`}>
+                        {isTransfer ? '' : t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount).replace('Rp\u00a0', 'Rp ')}
+                      </span>
                     </div>
-                    <span className={`text-sm font-extrabold ${t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount).replace('Rp\u00a0', 'Rp ')}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
