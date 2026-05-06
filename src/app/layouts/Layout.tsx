@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User, Split, DatabaseZap, Tag } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User, Split, DatabaseZap, Tag, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { useVisibility } from '../contexts/VisibilityContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
 export function Layout() {
   const { profile, user, signOut, refreshProfile } = useAuth();
+  const { amountsVisible, toggleAmounts } = useVisibility();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -79,12 +81,21 @@ export function Layout() {
             <img src="/logo.png" alt="MyLui Logo" className="w-8 h-8 rounded-lg shadow-sm transition-transform group-hover:scale-110" />
             <span className="text-xl font-bold tracking-tight">MyLui</span>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="p-1.5 text-muted-foreground hover:bg-accent rounded-xl transition-colors"
-          >
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleAmounts}
+              className="p-1.5 text-muted-foreground hover:bg-accent rounded-xl transition-colors"
+              title={amountsVisible ? 'Hide amounts' : 'Show amounts'}
+            >
+              {amountsVisible ? <Eye size={18} /> : <EyeOff size={18} />}
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 text-muted-foreground hover:bg-accent rounded-xl transition-colors"
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
         </div>
 
         {/* Desktop User Header Profile */}
@@ -154,6 +165,13 @@ export function Layout() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={toggleAmounts}
+            className="size-9 rounded-full bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            title={amountsVisible ? 'Hide amounts' : 'Show amounts'}
+          >
+            {amountsVisible ? <Eye size={18} /> : <EyeOff size={18} />}
+          </button>
           <button
             onClick={() => { setIsEditingProfile(true); setNewFullName(profile?.full_name || ''); }}
             className="size-9 rounded-full bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"

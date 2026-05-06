@@ -29,6 +29,7 @@ import {
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useVisibility } from '../contexts/VisibilityContext';
 import { Transaction, BudgetPlan } from '../lib/types';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -48,6 +49,7 @@ function getCategoryIcon(iconName?: string | null): React.ElementType {
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { maskAmount } = useVisibility();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allRecentTx, setAllRecentTx] = useState<Transaction[]>([]); // for the Recent list (last 6)
   const [plans, setPlans] = useState<BudgetPlan[]>([]);
@@ -201,7 +203,7 @@ export function Dashboard() {
           trend={null}
           positive={balance >= 0}
           primary
-          formatCurrency={formatCurrency}
+          formatCurrency={(v: number) => maskAmount(formatCurrency(v))}
         />
         <SummaryCard 
           title="Income" 
@@ -209,7 +211,7 @@ export function Dashboard() {
           icon={<TrendingUp className="text-emerald-500" size={20} />}
           trend={incomeTrend !== null ? `${Number(incomeTrend) >= 0 ? '+' : ''}${incomeTrend}% from last month` : 'First month'}
           positive={Number(incomeTrend) >= 0}
-          formatCurrency={formatCurrency}
+          formatCurrency={(v: number) => maskAmount(formatCurrency(v))}
         />
         <SummaryCard 
           title="Expense" 
@@ -217,7 +219,7 @@ export function Dashboard() {
           icon={<TrendingDown className="text-rose-500" size={20} />}
           trend={expenseTrend !== null ? `${Number(expenseTrend) >= 0 ? '+' : ''}${expenseTrend}% from last month` : 'First month'}
           positive={Number(expenseTrend) <= 0}
-          formatCurrency={formatCurrency}
+          formatCurrency={(v: number) => maskAmount(formatCurrency(v))}
         />
       </div>
 
@@ -351,7 +353,7 @@ export function Dashboard() {
                       <span className={`text-sm font-extrabold whitespace-nowrap ${
                         isTransfer ? 'text-blue-600' : t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
                       }`}>
-                        {isTransfer ? '' : t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount).replace('Rp\u00a0', 'Rp ')}
+                        {isTransfer ? '' : t.type === 'income' ? '+' : '-'}{maskAmount(formatCurrency(t.amount).replace('Rp\u00a0', 'Rp '))}
                       </span>
                     </div>
                   );

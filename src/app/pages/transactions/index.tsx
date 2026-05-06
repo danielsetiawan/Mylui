@@ -18,10 +18,12 @@ import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { TransactionAdd } from './add';
 import { TransactionEdit } from './edit';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
+import { useVisibility } from '../../contexts/VisibilityContext';
 
 export function Transactions() {
   const { user } = useAuth();
   const { monthOptions } = useMonthRange(); // ← global cached month list
+  const { maskAmount } = useVisibility();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
@@ -411,8 +413,8 @@ export function Transactions() {
                   <p className={`text-[10px] font-bold truncate ${t === 'income' ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
                 </div>
                 <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
-                  <span className="sm:hidden">{formatCompactCurrency(total)}</span>
-                  <span className="hidden sm:inline">{formatCurrency(total)}</span>
+                  <span className="sm:hidden">{maskAmount(formatCompactCurrency(total))}</span>
+                  <span className="hidden sm:inline">{maskAmount(formatCurrency(total))}</span>
                 </div>
               </div>
             );
@@ -423,8 +425,8 @@ export function Transactions() {
               <p className="text-[10px] font-bold text-muted-foreground truncate">Balance</p>
             </div>
             <div title={formatCurrency(stats.balance)} className={`text-xs sm:text-sm font-black truncate ${stats.balance >= 0 ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
-              <span className="sm:hidden">{formatCompactCurrency(stats.balance)}</span>
-              <span className="hidden sm:inline">{formatCurrency(stats.balance)}</span>
+              <span className="sm:hidden">{maskAmount(formatCompactCurrency(stats.balance))}</span>
+              <span className="hidden sm:inline">{maskAmount(formatCurrency(stats.balance))}</span>
             </div>
           </div>
         </div>
@@ -545,6 +547,7 @@ function FilterButton({ active, onClick, label }: { active: boolean, onClick: ()
   transaction: Transaction, onEdit: () => void, onDelete: () => void, formatCurrency: (v: number) => string, formatCompactCurrency: (v: number) => string, searchTerm: string
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const { maskAmount } = useVisibility();
 
   const isTransfer = transaction.type === 'transfer';
 
@@ -621,8 +624,8 @@ function FilterButton({ active, onClick, label }: { active: boolean, onClick: ()
                 : 'text-rose-600 dark:text-rose-400'
               }`}>
               {isTransfer ? '' : transaction.type === 'income' ? '+' : '-'}
-              <span className="sm:hidden">{formatCompactCurrency(transaction.amount).replace('Rp ', '')}</span>
-              <span className="hidden sm:inline">{formatCurrency(transaction.amount).replace('Rp ', '')}</span>
+              <span className="sm:hidden">{maskAmount(formatCompactCurrency(transaction.amount).replace('Rp ', ''))}</span>
+              <span className="hidden sm:inline">{maskAmount(formatCurrency(transaction.amount).replace('Rp ', ''))}</span>
             </div>
           </div>
         </div>
