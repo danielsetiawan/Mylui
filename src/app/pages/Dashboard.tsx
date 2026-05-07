@@ -72,23 +72,24 @@ export function Dashboard() {
     if (!user) return;
     const fetchData = async () => {
       try {
-        const [txThisMonth, txLastMonth, recentTx, planResult] = await Promise.all([
-          // This month transactions — for stats cards
-          supabase
-            .from('transactions')
-            .select('*')
-            .eq('user_id', user.id)
-            .gte('date', thisMonthStart)
-            .lte('date', thisMonthEnd)
-            .order('date', { ascending: false }),
-          // Last month transactions — for trend comparison
-          supabase
-            .from('transactions')
-            .select('type, amount')
-            .eq('user_id', user.id)
-            .gte('date', lastMonthStart)
-            .lte('date', lastMonthEndStr),
-          // Recent transactions (last 6, any time) — for Recent list & chart
+        const [incomeSum, expenseSum, lmIncomeSum, lmExpenseSum, recentTx, planResult] = await Promise.all([
+          // This month income sum
+          supabase.from('transactions').select('amount')
+            .eq('user_id', user.id).eq('type', 'income')
+            .gte('date', thisMonthStart).lte('date', thisMonthEnd),
+          // This month expense sum
+          supabase.from('transactions').select('amount')
+            .eq('user_id', user.id).eq('type', 'expense')
+            .gte('date', thisMonthStart).lte('date', thisMonthEnd),
+          // Last month income sum
+          supabase.from('transactions').select('amount')
+            .eq('user_id', user.id).eq('type', 'income')
+            .gte('date', lastMonthStart).lte('date', lastMonthEndStr),
+          // Last month expense sum
+          supabase.from('transactions').select('amount')
+            .eq('user_id', user.id).eq('type', 'expense')
+            .gte('date', lastMonthStart).lte('date', lastMonthEndStr),
+          // Recent 30 transactions — for both chart and Recent Activity list
           supabase
             .from('transactions')
             .select('*, transaction_category:transaction_categories!category_id(id,name,color,icon)')
@@ -103,20 +104,19 @@ export function Dashboard() {
             .limit(3),
         ]);
 
-        if (txThisMonth.data) setTransactions(txThisMonth.data as Transaction[]);
         if (recentTx.data) setAllRecentTx(recentTx.data as Transaction[]);
         if (planResult.data) setPlans(planResult.data as BudgetPlan[]);
 
-        // Trend calculation using last month data
-        if (txLastMonth.data) {
-          const lmIncome = (txLastMonth.data as any[])
-            .filter((t: any) => t.type === 'income')
-            .reduce((a: number, t: any) => a + t.amount, 0);
-          const lmExpense = (txLastMonth.data as any[])
-            .filter((t: any) => t.type === 'expense')
-            .reduce((a: number, t: any) => a + t.amount, 0);
-          setLastMonthStats({ income: lmIncome, expense: lmExpense });
-        }
+        const tmIncome = (incomeSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+        const tmExpense = (expenseSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+        setTransactions([
+          { type: 'income', amount: tmIncome } as any,
+          { type: 'expense', amount: tmExpense } as any,
+        ]);
+
+        const lmIncome = (lmIncomeSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+        const lmExpense = (lmExpenseSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+        setLastMonthStats({ income: lmIncome, expense: lmExpense });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {

@@ -32,7 +32,7 @@ export function Transactions() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [filterIncomeId, setFilterIncomeId] = useState<string>('all');
-  const [monthIncomes, setMonthIncomes] = useState<{ id: string, description: string, amount: number }[]>([]);
+  const [monthIncomes, setMonthIncomes] = useState<{ id: string, description: string, category: string, amount: number, date: string }[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
@@ -53,54 +53,74 @@ export function Transactions() {
   }, [searchTerm]);
 
   useEffect(() => {
-    if (user) {
-      fetchTransactions(false);
-      fetchStats();
-    }
+    if (!user) return;
+    fetchTransactions(false);
+    fetchStats();
   }, [user, filterType, filterMonthYear, filterIncomeId, debouncedSearchTerm]);
 
+  // Separate effect for monthIncomes — only depends on user + filterMonthYear
   useEffect(() => {
-    if (user && filterMonthYear) {
-      const fetchIncomes = async () => {
-        const [year, month] = filterMonthYear.split('-').map(Number);
-        const lastDay = new Date(year, month, 0).getDate();
-        const { data } = await supabase
-          .from('transactions')
-          .select('id, description, amount')
-          .eq('user_id', user.id)
-          .eq('type', 'income')
-          .gte('date', `${filterMonthYear}-01`)
-          .lte('date', `${filterMonthYear}-${lastDay}`)
-          .order('date', { ascending: false });
-        if (data) setMonthIncomes(data as any[]);
-      };
-      fetchIncomes();
-    } else {
+    if (!user || !filterMonthYear) {
       setMonthIncomes([]);
+      return;
     }
+    const [year, month] = filterMonthYear.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    supabase
+      .from('transactions')
+      .select('id, description, category, amount, date')
+      .eq('user_id', user.id)
+      .eq('type', 'income')
+      .gte('date', `${filterMonthYear}-01`)
+      .lte('date', `${filterMonthYear}-${lastDay}`)
+      .order('date', { ascending: false })
+      .then(({ data }) => { if (data) setMonthIncomes(data as any[]); });
   }, [user, filterMonthYear]);
 
   const fetchStats = async () => {
     if (!user) return;
     try {
-      let query = supabase.from('transactions').select('type, amount').eq('user_id', user.id)
-        .neq('type', 'transfer'); // Exclude transfers from stats!
+      const dateFilters = filterMonthYear
+        ? (() => {
+            const [year, month] = filterMonthYear.split('-').map(Number);
+            const lastDay = new Date(year, month, 0).getDate();
+            return { start: `${filterMonthYear}-01`, end: `${filterMonthYear}-${lastDay}` };
+          })()
+        : null;
 
-      if (filterMonthYear) {
-        const [year, month] = filterMonthYear.split('-').map(Number);
-        const lastDay = new Date(year, month, 0).getDate();
-        query = query.gte('date', `${filterMonthYear}-01`).lte('date', `${filterMonthYear}-${lastDay}`);
+      const buildQuery = (type: 'income' | 'expense') => {
+        let q = supabase
+          .from('transactions')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('type', type);
+        if (dateFilters) q = q.gte('date', dateFilters.start).lte('date', dateFilters.end);
+        if (filterIncomeId !== 'all') q = q.or(`id.eq.${filterIncomeId},linked_income_id.eq.${filterIncomeId}`);
+        return q;
+      };
+
+      let income = 0;
+      let expense = 0;
+
+      if (filterType === 'income') {
+        const result = await buildQuery('income');
+        if (result.error) throw result.error;
+        income = (result.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+      } else if (filterType === 'expense') {
+        const result = await buildQuery('expense');
+        if (result.error) throw result.error;
+        expense = (result.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+      } else {
+        const [incomeResult, expenseResult] = await Promise.all([
+          buildQuery('income'),
+          buildQuery('expense'),
+        ]);
+        if (incomeResult.error) throw incomeResult.error;
+        if (expenseResult.error) throw expenseResult.error;
+        income = (incomeResult.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+        expense = (expenseResult.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
       }
 
-      if (filterIncomeId !== 'all') {
-        query = query.or(`id.eq.${filterIncomeId},linked_income_id.eq.${filterIncomeId}`);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const income = data.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0);
-      const expense = data.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0);
       setStats({ income, expense, balance: income - expense });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -144,23 +164,13 @@ export function Transactions() {
 
       let finalData = data as Transaction[];
 
-      // Perform an application-level "join" for linked_incomes to avoid PGRST schema cache constraint errors
-      if (finalData && finalData.length > 0) {
-        const linkedIds = [...new Set(finalData.filter(t => t.linked_income_id).map(t => t.linked_income_id as string))];
-        if (linkedIds.length > 0) {
-          const { data: incomeDetails } = await supabase
-            .from('transactions')
-            .select('id, description, category, amount, date')
-            .in('id', linkedIds);
-
-          if (incomeDetails && incomeDetails.length > 0) {
-            const incomeMap = new Map(incomeDetails.map(inc => [inc.id, inc]));
-            finalData = finalData.map(t => ({
-              ...t,
-              linked_income: t.linked_income_id ? incomeMap.get(t.linked_income_id) || null : null
-            }));
-          }
-        }
+      // Resolve linked_income using monthIncomes already in state
+      if (finalData.some(t => t.linked_income_id)) {
+        const incomeMap = new Map(monthIncomes.map(inc => [inc.id, inc]));
+        finalData = finalData.map(t => ({
+          ...t,
+          linked_income: t.linked_income_id ? (incomeMap.get(t.linked_income_id) || null) : null
+        }));
       }
 
       if (isLoadMore) {

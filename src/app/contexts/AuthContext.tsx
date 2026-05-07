@@ -24,27 +24,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Ambil session awal
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      setLoading(false);
-    });
-
-    // Subscribe ke perubahan auth state
+    // onAuthStateChange fires INITIAL_SESSION on subscribe — no need for getSession()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const newUser = session?.user ?? null;
-      
+
       setUser(prevUser => {
-        // Only update if User ID actually changed or existence changed
         if (prevUser?.id === newUser?.id) return prevUser;
         return newUser;
       });
 
       setSession(prevSession => {
         if (prevSession?.access_token === session?.access_token) return prevSession;
-        return session;
+        return session ?? null;
       });
 
       if (newUser && (!profile || profile.id !== newUser.id)) {
@@ -52,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (!newUser) {
         setProfile(null);
       }
-      
+
       setLoading(false);
     });
 
