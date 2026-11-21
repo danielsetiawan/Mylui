@@ -44,7 +44,7 @@ export function SplitBill() {
       setBillToDelete(null);
       fetchBills();
     } catch (e: any) {
-      toast.error('Gagal menghapus: ' + e.message);
+      toast.error('Failed to delete: ' + e.message);
     }
   };
 
@@ -139,6 +139,8 @@ export function SplitBill() {
         onConfirm={handleDelete}
         title="Delete Split Bill"
         message={`Are you sure you want to delete "${billToDelete?.title}"? All detailed items within this bill will also be deleted.`}
+        confirmText="Delete"
+        cancelText="Cancel"
       />
     </div>
   );

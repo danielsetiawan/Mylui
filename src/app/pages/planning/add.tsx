@@ -119,7 +119,7 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
                       inputMode="numeric"
                       value={nominalBudget.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} 
                       onChange={(e) => setNominalBudget(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Total nominal budget (otomatis dari item jika kosong)"
+                      placeholder="Total budget (uses item total if left empty)"
                       className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20"
                     />
                   </div>

@@ -198,12 +198,12 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
 
                   {/* Wallet From */}
                   <QuickSelectWithAdd
-                    label={editType === 'transfer' ? 'From Wallet' : 'Wallet / Sumber'}
+                    label={editType === 'transfer' ? 'From Wallet' : 'Wallet'}
                     value={editWalletId}
                     options={wallets}
                     onChange={setEditWalletId}
                     onAdd={async name => addWallet({ name, icon: 'Wallet', color: '#10b981', balance: 0 })}
-                    placeholder="Pilih wallet..."
+                    placeholder="Select wallet..."
                   />
 
                   {/* To Wallet */}
@@ -214,7 +214,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                       options={wallets.filter(w => w.id !== editWalletId)}
                       onChange={setEditToWalletId}
                       onAdd={async name => addWallet({ name, icon: 'Wallet', color: '#3b82f6', balance: 0 })}
-                      placeholder="Pilih tujuan..."
+                      placeholder="Select destination..."
                     />
                   )}
 
@@ -226,7 +226,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                       options={editType === 'expense' ? expenseCategories : incomeCategories}
                       onChange={setEditCategoryId}
                       onAdd={async name => addCategory({ name, icon: 'Tag', color: '#64748b', type: editType as 'income' | 'expense' })}
-                      placeholder="Pilih kategori..."
+                      placeholder="Select category..."
                     />
                   )}
 
@@ -235,7 +235,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                          <Link2 size={12} /> Link to Income <span className="font-normal opacity-60">(opsional)</span>
+                          <Link2 size={12} /> Link to Income <span className="font-normal opacity-60">(optional)</span>
                         </label>
                         <select
                           value={editIncomeMonth}
@@ -252,7 +252,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                         onChange={e => setEditLinkedIncomeId(e.target.value)}
                         className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
                       >
-                        <option value="">Tidak ditautkan</option>
+                        <option value="">Not linked</option>
                         {localIncomeSources.map(src => (
                           <option key={src.id} value={src.id}>
                             {src.description || src.category} ({src.amount.toLocaleString('id-ID')})
@@ -313,7 +313,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     </div>
 
                     <div className="bg-accent/40 p-3 rounded-xl flex items-center justify-between border border-border">
-                      <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Total Rincian</span>
+                      <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Details Total</span>
                       <span className="font-black text-primary">
                         Rp {editDetails.reduce((acc, d) => acc + (Number(d.amount) || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       </span>
@@ -338,7 +338,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                             <input
                               type="text" value={det.name}
                               onChange={e => { const a = [...editDetails]; a[index].name = e.target.value; setEditDetails(a); }}
-                              placeholder="Keterangan..."
+                              placeholder="Description..."
                               className="flex-1 bg-background border border-border rounded-lg py-2 px-3 text-sm font-semibold outline-none focus:border-primary"
                             />
                             <button onClick={() => handleRemoveDetail(index)} type="button" className="text-muted-foreground hover:text-rose-500 p-1.5">

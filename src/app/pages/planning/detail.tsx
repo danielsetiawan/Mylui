@@ -67,7 +67,7 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
               <div className="bg-accent/40 rounded-2xl p-4 sm:p-5 border border-border/50">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-bold text-muted-foreground">
-                    {(plan.budget_plan_items || []).length} item • Terpakai
+                    {(plan.budget_plan_items || []).length} items • Used
                   </span>
                   <span className={`text-xs font-black ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
                     {Math.round(progress)}%
@@ -82,13 +82,13 @@ export function PlanningDetail({ plan, onClose, onEditRequest, onDeleteRequest, 
                 
                 <div className="flex justify-between items-end">
                   <div>
-                    <p className="text-[10px] font-bold text-muted-foreground mb-1">Estimasi</p>
+                    <p className="text-[10px] font-bold text-muted-foreground mb-1">Estimate</p>
                     <div title={formatCurrency(totalEstimate)} className="text-sm sm:text-lg font-black text-foreground leading-none">
                       {formatCurrency(totalEstimate)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold text-muted-foreground mb-1">Sisa Budget</p>
+                    <p className="text-[10px] font-bold text-muted-foreground mb-1">Remaining Budget</p>
                     <div title={formatCurrency(sisaValue)} className={`text-sm sm:text-lg font-black leading-none ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
                       {sisaValue < 0 ? `-${formatCurrency(Math.abs(sisaValue))}` : formatCurrency(sisaValue)}
                     </div>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { 
   TrendingUp, 
@@ -17,20 +18,25 @@ import {
   Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
   Repeat, Coins, Receipt, Landmark, ArrowRightLeft
 } from 'lucide-react';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useVisibility } from '../contexts/VisibilityContext';
 import { Transaction, BudgetPlan } from '../lib/types';
+import { fetchAllRows, queryKeys } from '../lib/queryClient';
+import { useWalletCategory } from '../contexts/WalletCategoryContext';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Tag, ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
@@ -46,14 +52,36 @@ function getCategoryIcon(iconName?: string | null): React.ElementType {
   return Tag;
 }
 
+// Colours for categories that have none, in order. "Other" is always grey.
+const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#64748b'];
+const OTHER_COLOR = '#94a3b8';
+const TOP_CATEGORIES = 5;
+
+type DashboardRow = {
+  type: 'income' | 'expense';
+  amount: number;
+  date: string;
+  category_id: string | null;
+  category: string | null; // legacy text category
+};
+
+type CategorySlice = {
+  key: string;
+  name: string;
+  color: string;
+  icon?: string | null;
+  amount: number;
+  share: number; // 0..1 of this month's expense
+};
+
+const toDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { maskAmount } = useVisibility();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [allRecentTx, setAllRecentTx] = useState<Transaction[]>([]); // for the Recent list (last 6)
-  const [plans, setPlans] = useState<BudgetPlan[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { categories } = useWalletCategory();
 
   // Current month filter (same logic as Transactions page)
   const now = new Date();
@@ -64,99 +92,135 @@ export function Dashboard() {
 
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
   const lastMonthStart = `${lastMonth}-01`;
-  const lastMonthEndStr = `${lastMonth}-${String(lastMonthEnd.getDate()).padStart(2, '0')}`;
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchData = async () => {
-      try {
-        const [incomeSum, expenseSum, lmIncomeSum, lmExpenseSum, recentTx, planResult] = await Promise.all([
-          // This month income sum
-          supabase.from('transactions').select('amount')
-            .eq('user_id', user.id).eq('type', 'income')
-            .gte('date', thisMonthStart).lte('date', thisMonthEnd),
-          // This month expense sum
-          supabase.from('transactions').select('amount')
-            .eq('user_id', user.id).eq('type', 'expense')
-            .gte('date', thisMonthStart).lte('date', thisMonthEnd),
-          // Last month income sum
-          supabase.from('transactions').select('amount')
-            .eq('user_id', user.id).eq('type', 'income')
-            .gte('date', lastMonthStart).lte('date', lastMonthEndStr),
-          // Last month expense sum
-          supabase.from('transactions').select('amount')
-            .eq('user_id', user.id).eq('type', 'expense')
-            .gte('date', lastMonthStart).lte('date', lastMonthEndStr),
-          // Recent 30 transactions — for both chart and Recent Activity list
-          supabase
-            .from('transactions')
-            .select('*, transaction_category:transaction_categories!category_id(id,name,color,icon)')
-            .eq('user_id', user.id)
-            .order('date', { ascending: false })
-            .limit(30),
-          supabase
-            .from('budget_plans')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(3),
-        ]);
+  // One query for every income/expense row from the start of last month to the
+  // end of this month. Totals, trends, the category chart and the 7-day chart are
+  // all derived from it (the last 7 days always fall inside that range).
+  const { data: rows = [], isPending: rowsPending } = useQuery({
+    queryKey: queryKeys.dashboardRows(user?.id, thisMonth),
+    enabled: !!user,
+    queryFn: () =>
+      fetchAllRows<DashboardRow>(() =>
+        supabase
+          .from('transactions')
+          .select('type, amount, date, category_id, category')
+          .eq('user_id', user!.id)
+          .in('type', ['income', 'expense'])
+          .gte('date', lastMonthStart)
+          .lte('date', thisMonthEnd)
+          .order('date', { ascending: true })
+          .order('id', { ascending: true })
+      ),
+  });
 
-        if (recentTx.data) setAllRecentTx(recentTx.data as Transaction[]);
-        if (planResult.data) setPlans(planResult.data as BudgetPlan[]);
+  // Latest transactions for the Recent Activity list
+  const { data: recentTx = [], isPending: recentPending } = useQuery({
+    queryKey: queryKeys.dashboardRecent(user?.id),
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*, transaction_category:transaction_categories!category_id(id,name,color,icon)')
+        .eq('user_id', user!.id)
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(6);
+      if (error) throw error;
+      return (data ?? []) as Transaction[];
+    },
+  });
 
-        const tmIncome = (incomeSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
-        const tmExpense = (expenseSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
-        setTransactions([
-          { type: 'income', amount: tmIncome } as any,
-          { type: 'expense', amount: tmExpense } as any,
-        ]);
+  const { data: plans = [] } = useQuery({
+    queryKey: queryKeys.dashboardPlans(user?.id),
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('budget_plans')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return (data ?? []) as BudgetPlan[];
+    },
+  });
 
-        const lmIncome = (lmIncomeSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
-        const lmExpense = (lmExpenseSum.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
-        setLastMonthStats({ income: lmIncome, expense: lmExpense });
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
+  // ── Totals: this month and last month ──
+  const totals = useMemo(() => {
+    const sums = { income: 0, expense: 0, lastIncome: 0, lastExpense: 0 };
+    for (const r of rows) {
+      const amount = Number(r.amount ?? 0);
+      const isThisMonth = r.date >= thisMonthStart;
+      if (r.type === 'income') {
+        if (isThisMonth) sums.income += amount; else sums.lastIncome += amount;
+      } else {
+        if (isThisMonth) sums.expense += amount; else sums.lastExpense += amount;
       }
-    };
-    fetchData();
-  }, [user]);
+    }
+    return sums;
+  }, [rows, thisMonthStart]);
 
-  const [lastMonthStats, setLastMonthStats] = useState({ income: 0, expense: 0 });
-
-  // Stats from THIS MONTH only
-  const totalIncome = transactions
-    .filter(t => t.type === 'income')
-    .reduce((acc, t) => acc + t.amount, 0);
-
-  const totalExpense = transactions
-    .filter(t => t.type === 'expense')
-    .reduce((acc, t) => acc + t.amount, 0);
-
+  const totalIncome = totals.income;
+  const totalExpense = totals.expense;
   const balance = totalIncome - totalExpense;
 
-  // Build chart data: last 7 days — use allRecentTx so chart always has data
+  // ── This month's expense per category (top 5 + "Other") ──
+  const categorySlices = useMemo<CategorySlice[]>(() => {
+    const byId = new Map(categories.map(c => [c.id, c]));
+    const groups = new Map<string, Omit<CategorySlice, 'share'>>();
+    for (const r of rows) {
+      if (r.type !== 'expense' || r.date < thisMonthStart) continue;
+      const cat = r.category_id ? byId.get(r.category_id) : undefined;
+      const legacy = r.category?.trim();
+      const key = cat ? cat.id : legacy ? `legacy:${legacy.toLowerCase()}` : 'none';
+      const group = groups.get(key) ?? {
+        key,
+        name: cat?.name ?? legacy ?? 'Uncategorized',
+        color: cat?.color ?? '',
+        icon: cat?.icon,
+        amount: 0,
+      };
+      group.amount += Number(r.amount ?? 0);
+      groups.set(key, group);
+    }
+
+    const sorted = [...groups.values()].sort((a, b) => b.amount - a.amount);
+    const top = sorted.slice(0, TOP_CATEGORIES);
+    const rest = sorted.slice(TOP_CATEGORIES);
+    if (rest.length > 0) {
+      top.push({ key: 'other', name: `Other (${rest.length})`, color: OTHER_COLOR, amount: rest.reduce((a, g) => a + g.amount, 0) });
+    }
+    const total = top.reduce((a, g) => a + g.amount, 0) || 1;
+    let fallback = 0;
+    return top.map(g => ({
+      ...g,
+      color: g.color || FALLBACK_COLORS[fallback++ % FALLBACK_COLORS.length],
+      share: g.amount / total,
+    }));
+  }, [rows, categories, thisMonthStart]);
+
+  // ── Last 7 days, one bar pair per day ──
   const chartData = useMemo(() => {
-    const days: { name: string; income: number; expense: number }[] = [];
+    const days: { key: string; name: string; income: number; expense: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
-      const income = allRecentTx
-        .filter(t => t.type === 'income' && t.date.startsWith(dayStr))
-        .reduce((acc, t) => acc + t.amount, 0);
-      const expense = allRecentTx
-        .filter(t => t.type === 'expense' && t.date.startsWith(dayStr))
-        .reduce((acc, t) => acc + t.amount, 0);
-      days.push({ name: dayName, income, expense });
+      days.push({
+        key: toDateStr(d),
+        name: i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' }),
+        income: 0,
+        expense: 0,
+      });
+    }
+    const byDay = new Map(days.map(d => [d.key, d]));
+    for (const r of rows) {
+      const day = byDay.get(r.date.substring(0, 10));
+      if (day) day[r.type] += Number(r.amount ?? 0);
     }
     return days;
-  }, [allRecentTx]);
+  }, [rows]);
+  const chartHasData = chartData.some(d => d.income > 0 || d.expense > 0);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -165,14 +229,15 @@ export function Dashboard() {
       minimumFractionDigits: 0,
     }).format(val);
   };
+  const money = (val: number) => maskAmount(formatCurrency(val));
 
-  // Trend: this month vs last month — derived from lastMonthStats state (fetched in useEffect)
-  const incomeTrend = lastMonthStats.income === 0
+  // Trend: this month vs last month
+  const incomeTrend = totals.lastIncome === 0
     ? null
-    : ((totalIncome - lastMonthStats.income) / lastMonthStats.income * 100).toFixed(0);
-  const expenseTrend = lastMonthStats.expense === 0
+    : ((totalIncome - totals.lastIncome) / totals.lastIncome * 100).toFixed(0);
+  const expenseTrend = totals.lastExpense === 0
     ? null
-    : ((totalExpense - lastMonthStats.expense) / lastMonthStats.expense * 100).toFixed(0);
+    : ((totalExpense - totals.lastExpense) / totals.lastExpense * 100).toFixed(0);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -181,6 +246,8 @@ export function Dashboard() {
     if (h < 18) return 'Good Evening';
     return 'Good Night';
   };
+
+  const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <motion.div 
@@ -191,96 +258,173 @@ export function Dashboard() {
       <header className="flex flex-col gap-1">
         <p className="text-sm font-medium text-muted-foreground">{greeting()}, <span className="text-foreground font-bold">{profile?.full_name?.split(' ')[0] || 'User'}</span> 👋</p>
         <h1 className="text-3xl font-extrabold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Your financial summary today.</p>
+        <p className="text-muted-foreground">Your summary for {monthLabel}.</p>
       </header>
 
-      {/* Hero Stats */}
+      {/* Hero Stats — this month */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard 
-          title="Total Balance" 
+          title="Balance" 
           amount={balance} 
           icon={<Wallet className="text-primary-foreground" size={20} />}
-          trend={null}
+          trend="This month"
           positive={balance >= 0}
           primary
-          formatCurrency={(v: number) => maskAmount(formatCurrency(v))}
+          loading={rowsPending}
+          formatCurrency={money}
         />
         <SummaryCard 
           title="Income" 
           amount={totalIncome} 
           icon={<TrendingUp className="text-emerald-500" size={20} />}
-          trend={incomeTrend !== null ? `${Number(incomeTrend) >= 0 ? '+' : ''}${incomeTrend}% from last month` : 'First month'}
+          trend={incomeTrend !== null ? `${Number(incomeTrend) >= 0 ? '+' : ''}${incomeTrend}% vs last month` : 'First month'}
           positive={Number(incomeTrend) >= 0}
-          formatCurrency={(v: number) => maskAmount(formatCurrency(v))}
+          loading={rowsPending}
+          formatCurrency={money}
         />
         <SummaryCard 
           title="Expense" 
           amount={totalExpense} 
           icon={<TrendingDown className="text-rose-500" size={20} />}
-          trend={expenseTrend !== null ? `${Number(expenseTrend) >= 0 ? '+' : ''}${expenseTrend}% from last month` : 'First month'}
+          trend={expenseTrend !== null ? `${Number(expenseTrend) >= 0 ? '+' : ''}${expenseTrend}% vs last month` : 'First month'}
           positive={Number(expenseTrend) <= 0}
-          formatCurrency={(v: number) => maskAmount(formatCurrency(v))}
+          loading={rowsPending}
+          formatCurrency={money}
         />
       </div>
 
-      {/* Chart and Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 space-y-6">
+          {/* Spending by category — this month */}
+          <div className="@container bg-card border border-border rounded-3xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="font-bold text-lg">Spending by Category</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{monthLabel}</p>
+              </div>
+              <button onClick={() => navigate('/transactions')} className="text-primary text-sm font-medium hover:underline">Details</button>
+            </div>
+
+            {rowsPending ? (
+              <div className="flex flex-col @lg:flex-row items-center gap-6 animate-pulse">
+                <div className="size-44 rounded-full bg-accent shrink-0" />
+                <div className="flex-1 w-full space-y-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-2/3 rounded bg-accent" />
+                      <div className="h-1.5 w-full rounded bg-accent" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : categorySlices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
+                <ReceiptText size={32} className="opacity-20" />
+                <p>No expenses recorded this month</p>
+              </div>
+            ) : (
+              <div className="flex flex-col @lg:flex-row items-center gap-6 @lg:gap-8">
+                <div className="relative size-44 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categorySlices}
+                        dataKey="amount"
+                        nameKey="name"
+                        innerRadius="72%"
+                        outerRadius="100%"
+                        paddingAngle={categorySlices.length > 1 ? 2 : 0}
+                        stroke="none"
+                        isAnimationActive={false}
+                      >
+                        {categorySlices.map(slice => (
+                          <Cell key={slice.key} fill={slice.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-6 text-center">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Spent</span>
+                    <span className="text-sm font-black leading-tight break-all">{money(totalExpense)}</span>
+                  </div>
+                </div>
+
+                <ul className="flex-1 w-full space-y-3 min-w-0">
+                  {categorySlices.map(slice => {
+                    const Icon = slice.key === 'other' ? Tag : getCategoryIcon(slice.icon);
+                    return (
+                      <li key={slice.key} className="min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="size-7 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: slice.color + '22', color: slice.color }}
+                            >
+                              <Icon size={14} />
+                            </span>
+                            <span className="text-sm font-bold truncate">{slice.name}</span>
+                          </div>
+                          <div className="flex items-baseline gap-2 shrink-0">
+                            <span className="text-sm font-extrabold">{money(slice.amount)}</span>
+                            <span className="text-[11px] font-bold text-muted-foreground w-9 text-right">{Math.round(slice.share * 100)}%</span>
+                          </div>
+                        </div>
+                        <div className="mt-1.5 h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.max(slice.share * 100, 2)}%`, backgroundColor: slice.color }} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Last 7 days */}
           <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="font-bold text-lg">Cash Flow Last 7 Days</h3>
-            </div>
-            <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#030213" stopOpacity={0.08}/>
-                      <stop offset="95%" stopColor="#030213" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#e11d48" stopOpacity={0.08}/>
-                      <stop offset="95%" stopColor="#e11d48" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-                  <YAxis hide />
-                  <Tooltip 
-                    formatter={(val: number) => [formatCurrency(val)]}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="income" 
-                    name="Income"
-                    stroke="#030213" 
-                    strokeWidth={2.5}
-                    fillOpacity={1} 
-                    fill="url(#colorIncome)" 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="expense"
-                    name="Expense"
-                    stroke="#e11d48" 
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    fillOpacity={1}
-                    fill="url(#colorExpense)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex items-center gap-6 mt-4 justify-center">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                <div className="w-4 h-0.5 bg-foreground rounded" />
-                Income
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <h3 className="font-bold text-lg">Last 7 Days</h3>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                  <span className="size-2.5 rounded-sm bg-primary" /> Income
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                  <span className="size-2.5 rounded-sm bg-rose-500" /> Expense
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                <div className="w-4 h-0.5 bg-rose-500 rounded border-dashed" style={{ borderTop: '2px dashed #e11d48', background: 'none' }} />
-                Expense
-              </div>
+            </div>
+            <div className="h-[220px] w-full">
+              {rowsPending ? (
+                <div className="h-full w-full rounded-2xl bg-accent animate-pulse" />
+              ) : !chartHasData ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm gap-2">
+                  <ReceiptText size={32} className="opacity-20" />
+                  <p>No income or expense in the last 7 days</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} barGap={3} barCategoryGap="28%">
+                    <CartesianGrid vertical={false} stroke="var(--border)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                    <YAxis hide />
+                    <Tooltip
+                      cursor={{ fill: 'var(--accent)', opacity: 0.6 }}
+                      formatter={(val: number, name: string) => [money(val), name]}
+                      contentStyle={{
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--card)',
+                        color: 'var(--foreground)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ fontWeight: 700, marginBottom: 4 }}
+                    />
+                    <Bar dataKey="income" name="Income" fill="var(--primary)" radius={[6, 6, 0, 0]} maxBarSize={22} />
+                    <Bar dataKey="expense" name="Expense" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={22} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
@@ -303,7 +447,7 @@ export function Dashboard() {
                         <p className="text-xs text-muted-foreground capitalize">{plan.status === 'planning' ? 'Planning' : plan.status}</p>
                       </div>
                     </div>
-                    <p className="font-black text-sm text-primary">{formatCurrency(plan.total_budget)}</p>
+                    <p className="font-black text-sm text-primary">{money(plan.total_budget)}</p>
                   </div>
                 ))}
               </div>
@@ -318,17 +462,24 @@ export function Dashboard() {
             </div>
             
             <div className="flex-1 space-y-4">
-              {loading ? (
-                <div className="flex items-center justify-center h-40">
-                  <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                </div>
-              ) : transactions.length === 0 ? (
+              {recentPending ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="w-10 h-10 rounded-2xl bg-accent shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-2/3 rounded bg-accent" />
+                      <div className="h-2 w-1/3 rounded bg-accent" />
+                    </div>
+                    <div className="h-3 w-16 rounded bg-accent" />
+                  </div>
+                ))
+              ) : recentTx.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
                   <ReceiptText size={32} className="opacity-20" />
                   <p>No transactions yet</p>
                 </div>
               ) : (
-                allRecentTx.slice(0, 6).map((t) => {
+                recentTx.map((t) => {
                   const isTransfer = t.type === 'transfer';
                   const categoryColor = !isTransfer ? t.transaction_category?.color : undefined;
                   const CategoryIcon = getCategoryIcon(t.transaction_category?.icon);
@@ -337,7 +488,7 @@ export function Dashboard() {
                     ? { backgroundColor: categoryColor + '22', color: categoryColor }
                     : undefined;
                   const iconClass = !categoryColor
-                    ? (isTransfer ? 'bg-blue-50 text-blue-600' : t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600')
+                    ? (isTransfer ? 'bg-blue-500/10 text-blue-600' : t.type === 'income' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600')
                     : '';
                   return (
                     <div key={t.id} className="flex items-center justify-between gap-3 group">
@@ -347,7 +498,7 @@ export function Dashboard() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold leading-tight truncate">{displayName}</p>
-                          <p className="text-[10px] text-muted-foreground">{new Date(t.date + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
+                          <p className="text-[10px] text-muted-foreground">{new Date(t.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                         </div>
                       </div>
                       <span className={`text-sm font-extrabold whitespace-nowrap ${
@@ -375,22 +526,26 @@ export function Dashboard() {
   );
 }
 
-function SummaryCard({ title, amount, icon, trend, positive, primary, formatCurrency }: any) {
+function SummaryCard({ title, amount, icon, trend, positive, primary, loading, formatCurrency }: any) {
   return (
     <div className={`p-6 rounded-3xl border border-border shadow-sm flex flex-col gap-4 ${primary ? 'bg-primary text-primary-foreground border-transparent' : 'bg-card'}`}>
-      <div className="flex items-center justify-between">
-        <div className={`p-2 rounded-2xl ${primary ? 'bg-white/10' : 'bg-accent'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className={`p-2 rounded-2xl shrink-0 ${primary ? 'bg-white/10' : 'bg-accent'}`}>
           {icon}
         </div>
-        {trend && (
-          <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${positive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+        {trend && !loading && (
+          <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${primary ? 'bg-primary-foreground/15 text-primary-foreground' : positive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
             {trend}
           </div>
         )}
       </div>
       <div>
         <p className={`text-xs font-semibold ${primary ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{title}</p>
-        <h4 className="text-2xl font-black mt-1">{formatCurrency(amount)}</h4>
+        {loading ? (
+          <div className={`h-8 w-40 max-w-full rounded-lg mt-1 animate-pulse ${primary ? 'bg-primary-foreground/20' : 'bg-accent'}`} />
+        ) : (
+          <h4 className="text-2xl font-black mt-1">{formatCurrency(amount)}</h4>
+        )}
       </div>
     </div>
   );

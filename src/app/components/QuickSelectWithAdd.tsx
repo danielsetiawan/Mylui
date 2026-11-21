@@ -20,10 +20,10 @@ interface QuickSelectWithAddProps {
 
 /**
  * Dropdown selector with inline "Add New" capability.
- * Clicking "+ Tambah Baru" expands a small input to create a new option without leaving the page.
+ * Clicking "+" expands a small input to create a new option without leaving the page.
  */
 export function QuickSelectWithAdd({
-  label, value, options, onChange, onAdd, placeholder = 'Pilih...', required
+  label, value, options, onChange, onAdd, placeholder = 'Select...', required
 }: QuickSelectWithAddProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -53,7 +53,7 @@ export function QuickSelectWithAdd({
             value={newName}
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSave(); } if (e.key === 'Escape') { setIsAdding(false); setNewName(''); } }}
-            placeholder="Nama baru..."
+            placeholder="New name..."
             className="flex-1 bg-accent/50 border border-primary/30 rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 ring-primary/20"
           />
           <button
@@ -88,7 +88,7 @@ export function QuickSelectWithAdd({
           <button
             type="button"
             onClick={() => setIsAdding(true)}
-            title="Tambah baru"
+            title="Add new" aria-label="Add new"
             className="shrink-0 p-2.5 bg-accent hover:bg-primary/10 text-primary rounded-xl transition-colors border border-dashed border-primary/30"
           >
             <Plus size={16} />

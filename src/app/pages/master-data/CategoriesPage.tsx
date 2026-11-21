@@ -24,57 +24,57 @@ const COLORS = [
 
 // Available icons with labels
 const AVAILABLE_ICONS: { name: string; label: string; Icon: React.ElementType }[] = [
-  { name: 'Tag', label: 'Umum', Icon: Tag },
-  { name: 'Utensils', label: 'Makanan', Icon: Utensils },
-  { name: 'Coffee', label: 'Kopi', Icon: Coffee },
-  { name: 'ShoppingBag', label: 'Belanja', Icon: ShoppingBag },
+  { name: 'Tag', label: 'General', Icon: Tag },
+  { name: 'Utensils', label: 'Food', Icon: Utensils },
+  { name: 'Coffee', label: 'Coffee', Icon: Coffee },
+  { name: 'ShoppingBag', label: 'Shopping', Icon: ShoppingBag },
   { name: 'ShoppingCart', label: 'Supermarket', Icon: ShoppingCart },
-  { name: 'ShoppingBasket', label: 'Jajanan', Icon: ShoppingBasket },
-  { name: 'Cookie', label: 'Snack', Icon: Cookie },
-  { name: 'IceCream2', label: 'Es Krim', Icon: IceCream2 },
+  { name: 'ShoppingBasket', label: 'Street Food', Icon: ShoppingBasket },
+  { name: 'Cookie', label: 'Snacks', Icon: Cookie },
+  { name: 'IceCream2', label: 'Ice Cream', Icon: IceCream2 },
   { name: 'Pizza', label: 'Pizza', Icon: Pizza },
   { name: 'Sandwich', label: 'Fast Food', Icon: Sandwich },
-  { name: 'Soup', label: 'Makanan Berat', Icon: Soup },
-  { name: 'Car', label: 'Mobil', Icon: Car },
-  { name: 'Bike', label: 'Motor', Icon: Bike },
-  { name: 'Truck', label: 'Truk', Icon: Truck },
+  { name: 'Soup', label: 'Meals', Icon: Soup },
+  { name: 'Car', label: 'Car', Icon: Car },
+  { name: 'Bike', label: 'Motorbike', Icon: Bike },
+  { name: 'Truck', label: 'Truck', Icon: Truck },
   { name: 'Bus', label: 'Bus', Icon: Bus },
-  { name: 'Fuel', label: 'Bensin', Icon: Fuel },
-  { name: 'Wrench', label: 'Servis Kendaraan', Icon: Wrench },
-  { name: 'Plane', label: 'Liburan', Icon: Plane },
-  { name: 'MapPin', label: 'Jalan-jalan', Icon: MapPin },
-  { name: 'Map', label: 'Wisata', Icon: MapIcon },
-  { name: 'Compass', label: 'Petualangan', Icon: Compass },
-  { name: 'Mountain', label: 'Mendaki', Icon: Mountain },
+  { name: 'Fuel', label: 'Fuel', Icon: Fuel },
+  { name: 'Wrench', label: 'Vehicle Service', Icon: Wrench },
+  { name: 'Plane', label: 'Holiday', Icon: Plane },
+  { name: 'MapPin', label: 'Outings', Icon: MapPin },
+  { name: 'Map', label: 'Sightseeing', Icon: MapIcon },
+  { name: 'Compass', label: 'Adventure', Icon: Compass },
+  { name: 'Mountain', label: 'Hiking', Icon: Mountain },
   { name: 'Tent', label: 'Camping', Icon: Tent },
-  { name: 'Home', label: 'Rumah', Icon: Home },
-  { name: 'Briefcase', label: 'Kerja', Icon: Briefcase },
+  { name: 'Home', label: 'Home', Icon: Home },
+  { name: 'Briefcase', label: 'Work', Icon: Briefcase },
   { name: 'Gamepad2', label: 'Gaming', Icon: Gamepad2 },
-  { name: 'Heart', label: 'Kesehatan', Icon: Heart },
-  { name: 'Dumbbell', label: 'Olahraga', Icon: Dumbbell },
-  { name: 'Music', label: 'Hiburan', Icon: Music },
-  { name: 'BookOpen', label: 'Pendidikan', Icon: BookOpen },
-  { name: 'Gift', label: 'Hadiah', Icon: Gift },
-  { name: 'Zap', label: 'Listrik', Icon: Zap },
+  { name: 'Heart', label: 'Health', Icon: Heart },
+  { name: 'Dumbbell', label: 'Sports', Icon: Dumbbell },
+  { name: 'Music', label: 'Entertainment', Icon: Music },
+  { name: 'BookOpen', label: 'Education', Icon: BookOpen },
+  { name: 'Gift', label: 'Gifts', Icon: Gift },
+  { name: 'Zap', label: 'Electricity', Icon: Zap },
   { name: 'Flame', label: 'Gas', Icon: Flame },
-  { name: 'Umbrella', label: 'Asuransi', Icon: Umbrella },
-  { name: 'Smartphone', label: 'Pulsa', Icon: Smartphone },
-  { name: 'Monitor', label: 'Teknologi', Icon: Monitor },
-  { name: 'CreditCard', label: 'Tagihan', Icon: CreditCard },
-  { name: 'Receipt', label: 'Struk/Nota', Icon: Receipt },
-  { name: 'Banknote', label: 'Uang Tunai', Icon: Banknote },
-  { name: 'Coins', label: 'Tarik Tunai', Icon: Coins },
+  { name: 'Umbrella', label: 'Insurance', Icon: Umbrella },
+  { name: 'Smartphone', label: 'Phone Credit', Icon: Smartphone },
+  { name: 'Monitor', label: 'Technology', Icon: Monitor },
+  { name: 'CreditCard', label: 'Bills', Icon: CreditCard },
+  { name: 'Receipt', label: 'Receipts', Icon: Receipt },
+  { name: 'Banknote', label: 'Cash', Icon: Banknote },
+  { name: 'Coins', label: 'Cash Withdrawal', Icon: Coins },
   { name: 'Landmark', label: 'Bank', Icon: Landmark },
-  { name: 'PiggyBank', label: 'Tabungan', Icon: PiggyBank },
-  { name: 'TrendingUp', label: 'Investasi', Icon: TrendingUp },
+  { name: 'PiggyBank', label: 'Savings', Icon: PiggyBank },
+  { name: 'TrendingUp', label: 'Investments', Icon: TrendingUp },
   { name: 'Globe', label: 'Internet', Icon: Globe },
-  { name: 'Package', label: 'Paket/Logistik', Icon: Package },
-  { name: 'Baby', label: 'Anak', Icon: Baby },
-  { name: 'Dog', label: 'Hewan Peliharaan', Icon: Dog },
-  { name: 'Trees', label: 'Alam', Icon: Trees },
-  { name: 'Shirt', label: 'Pakaian', Icon: Shirt },
-  { name: 'Scissors', label: 'Perawatan', Icon: Scissors },
-  { name: 'Star', label: 'Lain-lain', Icon: Star },
+  { name: 'Package', label: 'Parcels/Shipping', Icon: Package },
+  { name: 'Baby', label: 'Kids', Icon: Baby },
+  { name: 'Dog', label: 'Pets', Icon: Dog },
+  { name: 'Trees', label: 'Nature', Icon: Trees },
+  { name: 'Shirt', label: 'Clothing', Icon: Shirt },
+  { name: 'Scissors', label: 'Personal Care', Icon: Scissors },
+  { name: 'Star', label: 'Others', Icon: Star },
 ];
 
 function IconPicker({ value, onChange }: { value: string; onChange: (name: string) => void }) {
@@ -161,7 +161,7 @@ export function CategoriesPage() {
       <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 ml-1">{title}</h3>
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         {items.length === 0 ? (
-          <div className="p-6 text-center text-sm text-muted-foreground italic">Belum ada kategori</div>
+          <div className="p-6 text-center text-sm text-muted-foreground italic">No categories yet. Add your first category!</div>
         ) : (
           <div className="divide-y divide-border">
             {items.map(cat => (
@@ -176,7 +176,7 @@ export function CategoriesPage() {
                     />
                     {/* Color picker */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-muted-foreground shrink-0">Warna:</span>
+                      <span className="text-xs font-bold text-muted-foreground shrink-0">Color:</span>
                       <div className="flex gap-1.5 flex-wrap">
                         {COLORS.map(c => (
                           <button key={c} type="button" onClick={() => setEditColor(c)}
@@ -191,8 +191,8 @@ export function CategoriesPage() {
                       <IconPicker value={editIcon} onChange={setEditIcon} />
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleUpdate(cat.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-lg border border-emerald-200"><Check size={14} /> Simpan</button>
-                      <button onClick={() => setEditingId(null)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-muted-foreground hover:bg-accent rounded-lg border border-border"><X size={14} /> Batal</button>
+                      <button onClick={() => handleUpdate(cat.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-lg border border-emerald-200"><Check size={14} /> Save</button>
+                      <button onClick={() => setEditingId(null)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-muted-foreground hover:bg-accent rounded-lg border border-border"><X size={14} /> Cancel</button>
                     </div>
                   </div>
                 ) : (
@@ -227,12 +227,12 @@ export function CategoriesPage() {
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight">Categories</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Kelola kategori transaksi kamu</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage your transaction categories</p>
           </div>
         </div>
         <button onClick={() => setIsAdding(true)}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
-          <Plus size={18} /> Tambah
+          <Plus size={18} /> Add
         </button>
       </div>
 
@@ -241,7 +241,7 @@ export function CategoriesPage() {
         {isAdding && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-              <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Kategori Baru</h3>
+              <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">New Category</h3>
               {/* Type Toggle */}
               <div className="flex p-1 bg-accent rounded-xl w-fit gap-0.5">
                 <button type="button" onClick={() => setNewType('expense')}
@@ -256,12 +256,12 @@ export function CategoriesPage() {
               <input
                 type="text" autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setIsAdding(false); }}
-                placeholder="Nama kategori (e.g. Makan, Transport...)"
+                placeholder="Category name (e.g. Food, Transport...)"
                 className="w-full bg-accent/50 border-none rounded-xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
               />
               {/* Color picker */}
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-bold text-muted-foreground">Warna:</span>
+                <span className="text-xs font-bold text-muted-foreground">Color:</span>
                 <div className="flex gap-2 flex-wrap">
                   {COLORS.map(c => (
                     <button key={c} type="button" onClick={() => setNewColor(c)}
@@ -272,7 +272,7 @@ export function CategoriesPage() {
               </div>
               {/* Icon picker */}
               <div>
-                <span className="text-xs font-bold text-muted-foreground block mb-2">Pilih Icon:</span>
+                <span className="text-xs font-bold text-muted-foreground block mb-2">Choose Icon:</span>
                 <IconPicker value={newIcon} onChange={setNewIcon} />
               </div>
               {/* Preview */}
@@ -283,11 +283,11 @@ export function CategoriesPage() {
               <div className="flex gap-2">
                 <button onClick={handleAdd} disabled={saving || !newName.trim()}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold disabled:opacity-50 transition-all">
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Simpan
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Save
                 </button>
                 <button onClick={() => { setIsAdding(false); setNewName(''); setNewIcon('Tag'); }}
                   className="px-4 py-2.5 bg-accent text-muted-foreground rounded-xl font-bold hover:bg-accent/80 transition-all">
-                  Batal
+                  Cancel
                 </button>
               </div>
             </div>
@@ -300,8 +300,8 @@ export function CategoriesPage() {
 
       <ConfirmationDialog
         isOpen={!!deleteId}
-        title="Hapus Kategori"
-        message="Yakin mau hapus kategori ini? Transaksi yang terhubung tidak akan ikut terhapus."
+        title="Delete Category"
+        message="Are you sure you want to delete this category? Its linked transactions will not be deleted."
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />

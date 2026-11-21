@@ -323,7 +323,9 @@ export function Planning() {
       <ConfirmationDialog 
         isOpen={!!planToDelete}
         title="Delete Plan"
-        message="Are you sure you want to delete this budget plan? Data cannot be recovered."
+        message="Are you sure you want to delete this plan? This can't be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
         onConfirm={handleDeletePlan}
         onCancel={() => setPlanToDelete(null)}
       />
