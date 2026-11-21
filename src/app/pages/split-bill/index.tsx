@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { SplitBillAdd } from './add';
-import { SplitBillEdit } from './edit';
+import { useNavigate } from 'react-router';
 import { Split, Plus, Trash2, Calendar, Receipt } from 'lucide-react';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { toast } from 'sonner';
 
 export function SplitBill() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [bills, setBills] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const [activeView, setActiveView] = useState<'list' | 'add' | 'edit'>('list');
-  const [selectedBill, setSelectedBill] = useState<any>(null);
   const [billToDelete, setBillToDelete] = useState<any>(null);
 
   const fetchBills = async () => {
@@ -28,8 +25,8 @@ export function SplitBill() {
   };
 
   useEffect(() => {
-    if (user && activeView === 'list') fetchBills();
-  }, [user, activeView]);
+    if (user) fetchBills();
+  }, [user]);
 
   const handleDelete = async () => {
     if (!billToDelete) return;
@@ -47,19 +44,6 @@ export function SplitBill() {
       toast.error('Failed to delete: ' + e.message);
     }
   };
-
-  const reloadList = () => {
-    setActiveView('list');
-    setSelectedBill(null);
-  };
-
-  if (activeView === 'add') {
-    return <SplitBillAdd onClose={reloadList} />;
-  }
-
-  if (activeView === 'edit' && selectedBill) {
-    return <SplitBillEdit bill={selectedBill} onClose={reloadList} />;
-  }
 
   const formatIDR = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Math.round(num));
@@ -82,7 +66,7 @@ export function SplitBill() {
           </div>
         </div>
         <button
-          onClick={() => setActiveView('add')}
+          onClick={() => navigate('/split-bill/new')}
           className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 active:bg-primary/80 text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all font-bold group"
         >
           <Plus size={18} className="group-hover:rotate-90 transition-transform" />
@@ -104,7 +88,7 @@ export function SplitBill() {
           bills.map(bill => (
             <div 
               key={bill.id} 
-              onClick={() => { setSelectedBill(bill); setActiveView('edit'); }}
+              onClick={() => navigate(`/split-bill/${bill.id}`)}
               className="bg-card rounded-2xl p-5 border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div className="flex justify-between items-start mb-4">

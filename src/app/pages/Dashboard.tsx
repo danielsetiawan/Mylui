@@ -32,25 +32,12 @@ import {
 } from 'recharts';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
+import { getCategoryIcon } from '../lib/categoryIcons';
 import { useAuth } from '../contexts/AuthContext';
 import { useVisibility } from '../contexts/VisibilityContext';
 import { Transaction, BudgetPlan } from '../lib/types';
 import { fetchAllRows, queryKeys } from '../lib/queryClient';
 import { useWalletCategory } from '../contexts/WalletCategoryContext';
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  Tag, ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
-  Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
-  Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star, ArrowUpRight, ArrowDownRight,
-  ArrowRightLeft, Wallet, Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Compass,
-  Mountain, Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
-  Map: MapIcon, Repeat, Coins, Receipt, Landmark
-};
-
-function getCategoryIcon(iconName?: string | null): React.ElementType {
-  if (iconName && ICON_MAP[iconName]) return ICON_MAP[iconName];
-  return Tag;
-}
 
 // Colours for categories that have none, in order. "Other" is always grey.
 const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#64748b'];
@@ -137,8 +124,9 @@ export function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('budget_plans')
-        .select('*')
+        .select('*, budget_plan_items(estimate)')
         .eq('user_id', user!.id)
+        .eq('status', 'active') // the card is "Active Budget Plans"
         .order('created_at', { ascending: false })
         .limit(3);
       if (error) throw error;
@@ -444,7 +432,12 @@ export function Dashboard() {
                       </div>
                       <div>
                         <p className="font-bold text-sm">{plan.title}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{plan.status === 'planning' ? 'Planning' : plan.status}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(() => {
+                            const planned = (plan.budget_plan_items || []).reduce((sum, i) => sum + Number(i.estimate || 0), 0);
+                            return `${money(planned)} planned`;
+                          })()}
+                        </p>
                       </div>
                     </div>
                     <p className="font-black text-sm text-primary">{money(plan.total_budget)}</p>

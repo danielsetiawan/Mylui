@@ -12,6 +12,8 @@ const pageLoaders = {
   Planning: () => import("./pages/planning").then((m) => ({ default: m.Planning })),
   Notes: () => import("./pages/Notes").then((m) => ({ default: m.Notes })),
   SplitBill: () => import("./pages/split-bill").then((m) => ({ default: m.SplitBill })),
+  SplitBillAdd: () => import("./pages/split-bill/add").then((m) => ({ default: m.SplitBillAdd })),
+  SplitBillEdit: () => import("./pages/split-bill/edit").then((m) => ({ default: m.SplitBillEdit })),
   Init: () => import("./pages/Init").then((m) => ({ default: m.Init })),
   WalletsPage: () => import("./pages/master-data/WalletsPage").then((m) => ({ default: m.WalletsPage })),
   CategoriesPage: () => import("./pages/master-data/CategoriesPage").then((m) => ({ default: m.CategoriesPage })),
@@ -22,6 +24,8 @@ const Transactions = lazy(pageLoaders.Transactions);
 const Planning = lazy(pageLoaders.Planning);
 const Notes = lazy(pageLoaders.Notes);
 const SplitBill = lazy(pageLoaders.SplitBill);
+const SplitBillAdd = lazy(pageLoaders.SplitBillAdd);
+const SplitBillEdit = lazy(pageLoaders.SplitBillEdit);
 const Init = lazy(pageLoaders.Init);
 const WalletsPage = lazy(pageLoaders.WalletsPage);
 const CategoriesPage = lazy(pageLoaders.CategoriesPage);
@@ -72,6 +76,15 @@ export const router = createBrowserRouter([
           {
             path: "split-bill",
             Component: SplitBill,
+          },
+          {
+            // Own URLs so a refresh keeps you on the form ("new" must stay before ":id")
+            path: "split-bill/new",
+            Component: SplitBillAdd,
+          },
+          {
+            path: "split-bill/:id",
+            Component: SplitBillEdit,
           },
           {
             path: "init",

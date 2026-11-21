@@ -8,6 +8,7 @@ import { useWalletCategory } from '../../contexts/WalletCategoryContext';
 import { QuickSelectWithAdd } from '../../components/QuickSelectWithAdd';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
 import { toast } from 'sonner';
+import { PlanLinkFields } from './PlanLinkFields';
 
 interface Props {
   isOpen: boolean;
@@ -17,6 +18,16 @@ interface Props {
 }
 
 type TabType = 'expense' | 'income' | 'transfer';
+
+// Local (not UTC) date/month, so the defaults are right around midnight in WIB
+const todayLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const thisMonthLocal = () => todayLocal().substring(0, 7);
+
+// An income counts as salary when its category, description or legacy category says so
+const SALARY_PATTERN = /\b(gaji|salary)\b/i;
 
 export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: Props) {
   const { user } = useAuth();
@@ -28,9 +39,14 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
   const [walletId, setWalletId] = useState('');
   const [toWalletId, setToWalletId] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayLocal);
   const [linkedIncomeId, setLinkedIncomeId] = useState('');
-  const [incomeMonth, setIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
+  // true once the user picks a linked income (or "Not linked") themselves
+  const [linkTouched, setLinkTouched] = useState(false);
+  // Planning realization: which plan (and item) this expense belongs to
+  const [planId, setPlanId] = useState('');
+  const [planItemId, setPlanItemId] = useState('');
+  const [incomeMonth, setIncomeMonth] = useState(thisMonthLocal);
   const [localIncomeSources, setLocalIncomeSources] = useState<Transaction[]>([]);
   const { monthOptions } = useMonthRange();
 
@@ -53,13 +69,30 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
     fetchIncomes();
   }, [incomeMonth, tab, user, isOpen]);
 
+  // Default "Link to Income" for a new expense: this month's salary ("Gaji").
+  // Only while the user has not chosen anything themselves.
+  useEffect(() => {
+    if (tab !== 'expense' || !isOpen || linkTouched || linkedIncomeId) return;
+    if (incomeMonth !== thisMonthLocal()) return;
+    const categoryName = new Map(categories.map(c => [c.id, c.name]));
+    // localIncomeSources is newest first, so this picks the latest salary of the month
+    const salary = localIncomeSources.find(src =>
+      SALARY_PATTERN.test(
+        [src.category_id ? categoryName.get(src.category_id) : '', src.description, src.category].filter(Boolean).join(' ')
+      )
+    );
+    if (salary) setLinkedIncomeId(salary.id);
+  }, [localIncomeSources, categories, incomeMonth, tab, isOpen, linkTouched, linkedIncomeId]);
+
   const expenseCategories = categories.filter(c => c.type === 'expense');
   const incomeCategories = categories.filter(c => c.type === 'income');
 
   const resetForm = () => {
     setAmount(''); setCategoryId(''); setWalletId('');
     setToWalletId(''); setDescription(''); setLinkedIncomeId('');
-    setDate(new Date().toISOString().split('T')[0]);
+    setLinkTouched(false); setIncomeMonth(thisMonthLocal());
+    setPlanId(''); setPlanItemId('');
+    setDate(todayLocal());
     setDetails([]); setShowDetails(false);
   };
 
@@ -84,6 +117,8 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
         to_wallet_id: tab === 'transfer' ? (toWalletId || null) : null,
         category_id: tab !== 'transfer' ? (categoryId || null) : null,
         linked_income_id: tab === 'expense' ? (linkedIncomeId || null) : null,
+        budget_plan_id: tab === 'expense' ? (planId || null) : null,
+        budget_plan_item_id: tab === 'expense' && planId ? (planItemId || null) : null,
       };
 
       const { data: txData, error } = await supabase
@@ -203,7 +238,13 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                       </label>
                       <select
                         value={incomeMonth}
-                        onChange={e => setIncomeMonth(e.target.value)}
+                        onChange={e => {
+                          // A different month has different incomes; drop the old choice
+                          setIncomeMonth(e.target.value);
+                          setLinkedIncomeId('');
+                          setLinkTouched(true);
+                        }}
+                        aria-label="Income month"
                         className="text-xs font-bold bg-accent/50 border-none rounded-lg py-1 px-2 outline-none appearance-none cursor-pointer"
                       >
                         {monthOptions.map(({ value, label }) => (
@@ -213,7 +254,8 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     </div>
                     <select
                       value={linkedIncomeId}
-                      onChange={e => setLinkedIncomeId(e.target.value)}
+                      onChange={e => { setLinkedIncomeId(e.target.value); setLinkTouched(true); }}
+                      aria-label="Linked income"
                       className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
                     >
                       <option value="">Not linked</option>
@@ -224,6 +266,16 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                       ))}
                     </select>
                   </div>
+                )}
+
+                {tab === 'expense' && (
+                  <PlanLinkFields
+                    planId={planId}
+                    itemId={planItemId}
+                    enabled={isOpen}
+                    onChange={(p, i) => { setPlanId(p); setPlanItemId(i); }}
+                    onItemCategory={c => { if (!categoryId) setCategoryId(c); }}
+                  />
                 )}
               </div>
 

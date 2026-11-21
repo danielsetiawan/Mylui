@@ -35,6 +35,10 @@ export const queryKeys = {
     ['transactions', userId, 'dashboard-rows', month] as const,
   dashboardRecent: (userId?: string) => ['transactions', userId, 'dashboard-recent'] as const,
   dashboardPlans: (userId?: string) => ['budget_plans', userId, 'dashboard-preview'] as const,
+  // Everything from budget_plans starts with ['budget_plans', userId] so one invalidate refreshes it all
+  plans: (userId?: string) => ['budget_plans', userId] as const,
+  planList: (userId: string | undefined, filters: Record<string, string>) =>
+    ['budget_plans', userId, 'list', filters] as const,
 };
 
 // PostgREST membatasi jumlah baris per request (default Supabase: 1000).
