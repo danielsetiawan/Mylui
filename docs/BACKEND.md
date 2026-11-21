@@ -1,6 +1,6 @@
 # MyLui Backend (Supabase) — Skema & Kontrak Data Bersama
 
-> Web ([WEB.md](WEB.md)) dan mobile ([MOBILE.md](MOBILE.md)) memakai **satu project Supabase yang sama**. Dokumen ini adalah kontrak data di antara keduanya.
+> Web ([WEB.md](WEB.md)) dan mobile ([MOBILE.md](../../mylui-mobile/docs/MOBILE.md)) memakai **satu project Supabase yang sama**. Dokumen ini adalah kontrak data di antara keduanya.
 >
 > ⚠️ **Sumber kebenaran skema TIDAK ADA di repo.** Tidak ada file SQL, migration, atau definisi RLS. Seluruh isi dokumen ini **direkonstruksi dari query di kode klien** (nama tabel, kolom, relasi yang dipakai). Tipe kolom, default, constraint, index, trigger, dan policy RLS ditandai **[TIDAK DIKETAHUI]** bila tidak bisa disimpulkan.
 >
@@ -17,7 +17,7 @@ Flutter (mobile) ─┘                                     ├─ Auth (GoTrue)
 
 - Tidak ada backend kustom. Tidak ada RPC (`.rpc()`), Edge Function, Storage, maupun Realtime yang dipanggil klien.
 - `supabase/functions/server/` (Hono + tabel `kv_store_c093f2ae`) adalah boilerplate Figma Make dan **tidak dipakai** aplikasi.
-- Lokasi kredensial klien: web → `.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`); mobile → `mylui_mobile/lib/core/constants.dart` (hardcoded). Juga ada salinan tak terpakai di `utils/supabase/info.tsx`. Semuanya anon key (publik), sehingga **keamanan data sepenuhnya bergantung pada RLS**.
+- Lokasi kredensial klien: web → `.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`); mobile → `lib/core/constants.dart` di repo `mylui-mobile` (hardcoded). Juga ada salinan tak terpakai di `utils/supabase/info.tsx`. Semuanya anon key (publik), sehingga **keamanan data sepenuhnya bergantung pada RLS**.
 
 ## 2. Diagram Relasi
 
@@ -87,7 +87,7 @@ Notasi kolom "Sumber": **W** = dipakai web, **M** = dipakai mobile. Tipe adalah 
 | `created_at` | timestamptz | W | |
 
 - CRUD hanya dari web. Mobile read-only.
-- Daftar nama ikon yang valid: `AVAILABLE_ICONS` di `src/app/pages/master-data/CategoriesPage.tsx`. Pemetaan tampilan: `ICON_MAP` (web, 2 tempat) dan `getCategoryIcon` di `mylui_mobile/lib/pages/transactions_page.dart`. Nama tak dikenal → ikon default.
+- Daftar nama ikon yang valid: `AVAILABLE_ICONS` di `src/app/pages/master-data/CategoriesPage.tsx`. Pemetaan tampilan: `ICON_MAP` (web, 2 tempat) dan `getCategoryIcon` di `lib/pages/transactions_page.dart` (repo `mylui-mobile`). Nama tak dikenal → ikon default.
 
 ### 3.4 `transactions`
 
@@ -202,7 +202,7 @@ Hapus plan: klien hanya menghapus header; item diasumsikan cascade **[TIDAK DIKE
 | `id`, `split_bill_id` | ✓ | ✓ |
 | `person_name` | nama, kosong → `'Unknown'` | nama, kosong → `'Unassigned'` |
 | `item_name` | nama, kosong → `'Item'` | apa adanya (boleh kosong) |
-| `original_price` | **harga × qty** (total baris) | **harga satuan** |
+| `original_price` | **bagian orang itu dari total item** (harga × qty, dibagi rata jika item dipakai bersama; rupiah bulat) | **harga satuan** |
 | `qty` | — (tidak dikirim) | ✓ |
 | `weight_percentage` | ✓ (`ratio × 100`) | — |
 | `tax_amount`, `service_amount`, `discount_amount`, `delivery_amount`, `admin_amount` | ✓ (alokasi per item, pecahan) | — |

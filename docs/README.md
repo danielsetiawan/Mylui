@@ -10,12 +10,12 @@ Titik masuk dokumentasi project. **Baca file ini lebih dulu** (berlaku untuk man
    | Aplikasi | Lokasi | Teknologi | Dokumen |
    |---|---|---|---|
    | Web | root repo (`src/`) | React 18 + Vite + TypeScript + Tailwind v4 | [WEB.md](WEB.md) |
-   | Mobile | `mylui_mobile/` | Flutter (Dart) | [MOBILE.md](MOBILE.md) |
+   | Mobile | **repo terpisah** `mylui-mobile` (folder `../mylui-mobile` di samping repo ini) | Flutter (Dart) | [MOBILE.md](../../mylui-mobile/docs/MOBILE.md) — ada di repo mobile |
    | Backend | Supabase (di luar repo) | Postgres + Auth, tanpa server kustom | [BACKEND.md](BACKEND.md) |
 
 3. **Tidak ada backend kustom.** Kedua klien memanggil Supabase langsung. Skema database **tidak tersimpan di repo**; [BACKEND.md](BACKEND.md) adalah rekonstruksi dari kode klien.
 4. Web berasal dari generator **Figma Make** dan masih menyimpan banyak sisa (folder `components/ui`, `supabase/functions`, dependency tak terpakai). Lihat daftar kode mati di [WEB.md §11](WEB.md).
-5. Kode mobile **sebagian besar belum di-commit ke git** (lihat [MOBILE.md §1](MOBILE.md)).
+5. Aplikasi mobile **dipindah ke repo sendiri** (`mylui-mobile`) pada 2026-11-22; sebelumnya berada di folder `mylui_mobile/` di repo ini. Dokumentasinya ikut pindah ke `mylui-mobile/docs/MOBILE.md`. [BACKEND.md](BACKEND.md) tetap di repo ini sebagai kontrak data bersama.
 
 ## Apa itu MyLui
 
@@ -50,21 +50,21 @@ Aplikasi pencatatan & perencanaan keuangan pribadi (single-user per akun, mata u
 | Tujuan | Baca |
 |---|---|
 | Refactor web | README ini → [WEB.md](WEB.md) → [BACKEND.md](BACKEND.md) |
-| Refactor mobile | README ini → [MOBILE.md](MOBILE.md) → [BACKEND.md](BACKEND.md) |
+| Refactor mobile | README ini → [MOBILE.md](../../mylui-mobile/docs/MOBILE.md) → [BACKEND.md](BACKEND.md) |
 | Mengubah struktur data | [BACKEND.md](BACKEND.md) dulu, lalu bagian terkait di WEB dan MOBILE |
-| Menyamakan perilaku web & mobile | [MOBILE.md §9](MOBILE.md) (tabel perbandingan) |
+| Menyamakan perilaku web & mobile | [MOBILE.md §9](../../mylui-mobile/docs/MOBILE.md) (tabel perbandingan) |
 
 ## Aturan untuk AI assistant yang mengerjakan refactor
 
 1. **Jangan menebak skema.** Jika informasi ditandai **[TIDAK DIKETAHUI]** di dokumen, minta pemilik project memverifikasi di Supabase atau baca kode yang dirujuk — jangan mengarang kolom, constraint, atau policy.
 2. **Bedakan "perilaku saat ini" dari "perilaku yang benar".** Bagian "Masalah yang Sudah Diketahui" di tiap dokumen mencatat bug yang ada. Refactor murni harus mempertahankan perilaku; perbaikan bug harus disetujui dan disebut eksplisit.
 3. **Perubahan data berdampak ke dua klien.** Periksa pemakaian tabel/kolom di web **dan** mobile sebelum mengubahnya ([BACKEND.md §6](BACKEND.md)).
-4. **Rumus Split Bill adalah kontrak** — ada di tiga tempat (`src/app/pages/split-bill/add.tsx`, `edit.tsx`, `mylui_mobile/lib/pages/split_bill_form_page.dart`) dan hasilnya harus identik.
+4. **Rumus Split Bill adalah kontrak** — ada di dua tempat: web `src/app/pages/split-bill/calculate.ts` (`calculateSplit`) dan mobile `lib/pages/split_bill_form_page.dart` di repo `mylui-mobile`. Hasilnya harus identik.
 5. **Nama ikon kategori adalah kontrak** antara DB, web (`AVAILABLE_ICONS`, `ICON_MAP`), dan mobile (`getCategoryIcon`).
-6. **Banyak kode diduplikasi** (form add/edit, formatter, pemetaan ikon). Saat mengubah satu, cari kembarannya — daftar ada di [WEB.md §8](WEB.md) dan [MOBILE.md §10](MOBILE.md).
+6. **Banyak kode diduplikasi** (form add/edit, formatter, pemetaan ikon). Saat mengubah satu, cari kembarannya — daftar ada di [WEB.md §8](WEB.md) dan [MOBILE.md §10](../../mylui-mobile/docs/MOBILE.md).
 7. **Web tidak punya type-check, lint, atau test; test mobile rusak.** Verifikasi perubahan dengan `npm run build` (web) dan `flutter analyze` (mobile), lalu uji manual.
 8. **Jangan menyalin kredensial** (URL/anon key Supabase) ke dokumen, log, atau layanan luar.
-9. Path di dokumen relatif terhadap root repo kecuali disebut lain. Di [MOBILE.md](MOBILE.md), path `lib/...` relatif terhadap `mylui_mobile/`.
+9. Path di dokumen relatif terhadap root repo masing-masing kecuali disebut lain (dokumen web → repo `mylui-laravel`, MOBILE.md → repo `mylui-mobile`). Tautan antar-repo mengasumsikan kedua repo di-clone berdampingan dalam folder yang sama.
 
 ## Tentang dokumentasi ini
 

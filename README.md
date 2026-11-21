@@ -1,5 +1,5 @@
 > **Dokumentasi sistem ada di [`docs/`](docs/README.md).** Mulai dari [docs/README.md](docs/README.md).
-> Catatan: nama folder `mylui-laravel` salah penamaan — project ini **bukan Laravel**, melainkan React + Vite (web) dan Flutter (mobile, di `mylui_mobile/`) dengan backend Supabase.
+> Catatan: nama folder `mylui-laravel` salah penamaan — project ini **bukan Laravel**, melainkan React + Vite (web) dan Flutter (mobile, di repo terpisah `mylui-mobile`) dengan backend Supabase.
 > Teks di bawah ini adalah README bawaan generator Figma Make.
 
 

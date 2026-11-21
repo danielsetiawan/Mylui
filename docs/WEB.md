@@ -2,7 +2,7 @@
 
 > Dokumen ini ditulis agar bisa dibaca manusia maupun AI sebelum melakukan refactor.
 > Semua pernyataan di sini diturunkan langsung dari kode (bukan asumsi). Hal yang **tidak bisa dipastikan dari kode** ditandai dengan label **[TIDAK DIKETAHUI]**.
-> Referensi lain: [README.md](README.md) (indeks), [BACKEND.md](BACKEND.md) (skema Supabase bersama), [MOBILE.md](MOBILE.md) (aplikasi Flutter).
+> Referensi lain: [README.md](README.md) (indeks), [BACKEND.md](BACKEND.md) (skema Supabase bersama), [MOBILE.md](../../mylui-mobile/docs/MOBILE.md) (aplikasi Flutter, repo `mylui-mobile`).
 
 ## 1. Ringkasan
 
@@ -75,8 +75,7 @@ Tooling yang **tidak ada**: `tsconfig.json`, package `typescript`, ESLint, Prett
 ├── guidelines/Guidelines.md   ← template kosong dari Figma Make
 ├── fix_labels.cjs             ← script sekali-pakai (hapus "uppercase tracking-wider"), bukan bagian aplikasi
 ├── test_supabase_fk.js        ← script debug sekali-pakai (butuh `dotenv` yang tidak ada di dependencies)
-├── dist/                      ← hasil build (di-ignore git)
-└── mylui_mobile/              ← aplikasi Flutter terpisah, lihat MOBILE.md
+└── dist/                      ← hasil build (di-ignore git)
 ```
 
 ### Dependency yang benar-benar dipakai kode aplikasi
@@ -139,6 +138,8 @@ Semua halaman di-load dengan `React.lazy` (satu chunk per halaman). Fallback `<S
 | `/planning` | `Planning` | `pages/planning/index.tsx` | Login |
 | `/notes` | `Notes` | `pages/Notes.tsx` | Login |
 | `/split-bill` | `SplitBill` | `pages/split-bill/index.tsx` | Login |
+| `/split-bill/new` | `SplitBillAdd` | `pages/split-bill/add.tsx` | Login. Harus didaftarkan sebelum `:id` |
+| `/split-bill/:id` | `SplitBillEdit` | `pages/split-bill/edit.tsx` | Login. Memuat bill dari DB berdasarkan id; id tidak ditemukan → toast + kembali ke list |
 | `/master-data/wallets` | `WalletsPage` | `pages/master-data/WalletsPage.tsx` | Login |
 | `/master-data/categories` | `CategoriesPage` | `pages/master-data/CategoriesPage.tsx` | Login |
 | `/init` | `Init` | `pages/Init.tsx` | Login + `profile.role === 'admin'` (dicek di dalam komponen, bukan di router) |
@@ -150,6 +151,7 @@ Hirarki: `AuthGuard` (cek sesi) → `Layout` (shell) → halaman. Semua route se
 
 ### Navigasi (`layouts/Layout.tsx`)
 
+- **Lebar konten**: `<main>` di `Layout.tsx` membungkus halaman dengan `max-w-7xl mx-auto p-4 md:p-8 xl:px-12` (diperlebar dari `max-w-5xl` pada 2026-11-22 atas permintaan pemilik). Halaman Wallets, Categories, dan Init sengaja tetap sempit di tengah lewat `max-w-2xl`/`max-w-4xl` milik halaman itu sendiri.
 - **Desktop (≥ `md`)**: sidebar kiri — Dashboard, Activity (`/transactions`), Planning, Notes, Split Bill, bagian "Master Data" (Wallets, Categories), dan "Init Data" (hanya admin). Tombol Sign Out di bawah.
 - **Mobile (< `md`)**: header atas (logo, sapaan, tombol hide-amount, edit profile, tema, logout) + bottom nav melayang berisi 6 item: Home, Activity, Plans, Notes, Split, **More**.
 - Tombol **More** membuka menu kecil di atas bottom nav (state `showMore` di `Layout.tsx`, komponen `MoreMenuItem`) berisi Wallets, Categories, dan Init Data (hanya admin). Menu tertutup otomatis saat pindah halaman; tombol More tampil aktif saat berada di `/master-data/*` atau `/init`. **Halaman baru yang tidak muat di bottom nav ditambahkan ke menu ini.**
@@ -292,7 +294,7 @@ File: `index.tsx` (list + filter + delete), `add.tsx` (`TransactionAdd`, panel i
 | Wallet | ✓ wajib | ✓ wajib | ✓ wajib ("dari") | `wallet_id` |
 | To Wallet | — | — | ✓ wajib, ≠ wallet asal | `to_wallet_id` |
 | Category (difilter sesuai tipe) | opsional | opsional | — (null) | `category_id` |
-| Link to Income (pilih bulan → pilih income) | opsional | — | — | `linked_income_id` |
+| Link to Income (pilih bulan → pilih income) | opsional | — | Form **tambah** expense otomatis memilih income "gaji" terbaru bulan berjalan: income yang nama kategorinya, `description`, atau `category` legacy cocok dengan `/\b(gaji\|salary)\b/i` (`SALARY_PATTERN` di `add.tsx`). Default hanya dipasang selama pengguna belum memilih sendiri (`linkTouched`); memilih "Not linked" atau mengganti bulan menghentikannya, dan reset form memasangnya lagi. Mengganti bulan juga mengosongkan pilihan. Form edit tidak memakai default ini | `linked_income_id` |
 | Date | ✓ | ✓ | ✓ | `date` (`yyyy-MM-dd`) |
 | Description / Notes | opsional | opsional | opsional | `description` |
 | Detail Items (baris nama + nominal) | opsional | opsional | — | tabel `transaction_details` |
@@ -327,15 +329,27 @@ File: `index.tsx` (grid kartu), `add.tsx` (`PlanningAdd` modal), `edit.tsx` (`Pl
 
 ### 7.6 Split Bill — `pages/split-bill/`
 
-File: `index.tsx` (list + switch view), `add.tsx` (`SplitBillAdd`), `edit.tsx` (`SplitBillEdit`).
+File:
 
-- Bukan modal: `index.tsx` punya state `activeView: 'list' | 'add' | 'edit'` dan me-render komponen penuh layar (URL tetap `/split-bill`).
+| File | Isi |
+|---|---|
+| `index.tsx` | List bill (`/split-bill`); klik kartu → `/split-bill/:id`, tombol create → `/split-bill/new` |
+| `SplitBillForm.tsx` | **Satu-satunya** editor, dipakai untuk bill baru dan edit (`bill` prop) |
+| `calculate.ts` | Tipe data, rumus `calculateSplit`, konversi item ⇄ baris (`expandItems`, `groupRows`, `splitEvenly`) |
+| `add.tsx` / `edit.tsx` | Halaman route: `SplitBillAdd` (`/split-bill/new`) → form kosong; `SplitBillEdit` (`/split-bill/:id`) → memuat header `split_bills` dan `split_bill_details` dari DB, `groupRows`, lalu form. Karena punya URL sendiri, refresh tetap di halaman yang sama (isian yang belum disimpan tetap hilang) |
+
 - Fitur kalkulator patungan; **tidak terhubung** ke transaksi/wallet.
-- `add.tsx` dan `edit.tsx` ±95% duplikat (komponen `ModifierInput`, kalkulasi, dan JSX sama persis).
 
-**Input**: judul; baris item `{ personName, itemName, originalPrice (harga satuan), qty }`; modifier global: Discount, Tax (PB1), Service — masing-masing bisa `percentage` atau `nominal`; Delivery Fee & Admin Fee (nominal).
+**Alur input (sejak 2026-11-22)** — dirancang untuk nongkrong ramai-ramai. Item, orang, dan pembagian ada dalam **satu kartu** "Items & who had what":
 
-**Algoritma (`calculations` useMemo)** — harus dipertahankan persis saat refactor:
+1. **Baris isian item** di bawah daftar: `{ name, qty, price (per unit) }`. Enter (atau tombol Add) menambah item ke daftar, mengosongkan baris, dan fokus kembali ke nama — jadi semua item struk bisa diketik berurutan. Harga wajib > 0.
+2. **Baris orang** di atas daftar: chip nama (klik = pilih orang aktif, × = hapus) + input "Add person". Saran nama ("Recent") diambil dari `person_name` di 20 bill terakhir (`split_bills` → `split_bill_details`, diurut paling sering); tidak ada tabel teman terpisah. Nama duplikat (case-insensitive) ditolak.
+3. **Daftar item**: klik baris = centang/batal untuk orang aktif (`BillItem.assignees`). Item dengan beberapa orang = **dibagi rata**; tombol "Everyone" mengisi/mengosongkan semua orang. Tombol pensil membuka mode edit inline (nama, qty, harga, ✓ simpan, × batal, hapus; Enter/Escape). Item yang belum punya orang ditandai dan **memblokir simpan**; simpan juga ditolak jika masih ada item yang sedang diedit atau isian item baru yang belum di-Enter.
+4. Modifier global: Discount, Tax (PB1), Service — masing-masing `percentage` atau `nominal`; Delivery Fee & Admin Fee (nominal).
+
+**Item → baris**: `expandItems` memecah tiap item menjadi satu baris per orang. Total item (`price × qty`) dibagi dengan `splitEvenly` menjadi rupiah bulat yang jumlahnya tepat sama dengan total (sisa pembagian +1 rupiah ke orang pertama). Baris-baris inilah input rumus dan yang disimpan ke DB.
+
+**Algoritma (`calculateSplit` di `calculate.ts`)** — harus dipertahankan persis saat refactor (dipindah apa adanya dari add/edit lama; diverifikasi identik pada 2.000 kasus acak). Di bawah, "item" = satu baris (person, share):
 
 ```
 price(item)      = originalPrice × qty
@@ -356,9 +370,9 @@ totalPerOrang    = Σ finalPrice item milik orang itu
 
 Catatan: pajak & service dihitung dari subtotal **sebelum** diskon. Karena pembulatan per item, `Σ finalPrice` bisa selisih beberapa rupiah dari `targetGrandTotal`.
 
-**Simpan**: insert `split_bills` (header, menyimpan tipe & nilai modifier) lalu `split_bill_details` (hanya item dengan `originalPrice > 0`). `original_price` di DB = `price` (**sudah dikali qty**); `qty` **tidak disimpan**.
+**Simpan**: insert `split_bills` (header, menyimpan tipe & nilai modifier) lalu `split_bill_details`, satu baris per (orang, bagian item). `original_price` di DB = **bagian orang itu dari total item** (sudah dikali qty dan sudah dibagi); `qty` **tidak disimpan**. Format kolom sama dengan sebelum redesign, jadi riwayat lama tetap terbaca.
 
-**Edit**: memuat detail dengan `qty = 1` dan `originalPrice = original_price` (qty asli hilang). Simpan = UPDATE header → DELETE semua detail → INSERT ulang.
+**Edit**: `groupRows` membangun ulang item & orang dari baris tersimpan. Baris dengan `item_name` sama, harga selisih ≤ 1 rupiah, dan orang berbeda digabung kembali menjadi satu item bersama (urutan orang disusun agar pembagian ulang menghasilkan angka yang sama). Selain itu tiap baris menjadi item sendiri. Karena qty tidak disimpan, item kembali sebagai qty 1 dengan harga = total. Simpan = UPDATE header → DELETE semua detail → INSERT ulang.
 
 **Hapus**: DELETE detail dulu, lalu header (manual, tidak mengandalkan cascade).
 
@@ -378,7 +392,7 @@ Efek menghapus wallet/kategori yang masih dipakai transaksi bergantung pada atur
 - `pages/transactions/index.tsx` → `ICON_MAP`
 - `pages/Dashboard.tsx` → `ICON_MAP`
 
-Nama yang tidak dikenali jatuh ke ikon `Tag`. Aplikasi mobile punya pemetaan sendiri (lihat [MOBILE.md](MOBILE.md)).
+Nama yang tidak dikenali jatuh ke ikon `Tag`. Aplikasi mobile punya pemetaan sendiri (lihat [MOBILE.md](../../mylui-mobile/docs/MOBILE.md)).
 
 ### 7.8 Init Data (Admin) — `pages/Init.tsx`
 
@@ -411,12 +425,11 @@ Komponen/utility yang **diduplikasi** antar file (kandidat ekstraksi):
 
 | Duplikat | Lokasi |
 |---|---|
-| `formatCurrency` / `formatIDR` (IDR tanpa desimal) | Dashboard, transactions/index, planning/index, split-bill (index, add, edit), Init |
+| `formatCurrency` / `formatIDR` (IDR tanpa desimal) | Dashboard, transactions/index, planning/index, split-bill (index, SplitBillForm), Init |
 | `formatCompactCurrency` (`Rp 1.234K`) | transactions/index, planning/index |
 | `HighlightMatch` | transactions/index, planning/index |
 | `ICON_MAP` / `getCategoryIcon` | Dashboard, transactions/index (+ `AVAILABLE_ICONS` di CategoriesPage) |
 | `statusConfig` (planning) | planning/index, planning/detail |
-| Seluruh form split bill | split-bill/add, split-bill/edit |
 | Form plan | planning/add, planning/edit |
 | Form transaksi | transactions/add, transactions/edit |
 | Pola debounce search 500 ms + filter bulan + pagination | transactions/index, planning/index, Notes |
@@ -461,7 +474,7 @@ Daftar ini adalah perilaku **aktual** kode saat ini. Saat refactor, putuskan sec
 
 ### Bug / perilaku berisiko
 
-1. **Tanggal default memakai UTC.** `new Date().toISOString().split('T')[0]` (transactions/add, edit) menghasilkan tanggal UTC. Di WIB (UTC+7), antara 00:00–06:59 default-nya **tanggal kemarin**. Berlaku juga untuk default `incomeMonth`.
+1. **Tanggal default memakai UTC** — **sudah diperbaiki di `transactions/add.tsx`** (`todayLocal()` / `thisMonthLocal()`). Masih ada di `transactions/edit.tsx` untuk default `editIncomeMonth` (`toISOString`), yang hanya dipakai jika transaksi tidak punya tanggal tertaut.
 2. **`Init.tsx` melanggar Rules of Hooks**: `useEffect` dipanggil setelah `return` kondisional (guard admin). Bisa error "Rendered more hooks…" ketika `profile` berubah dari null → admin.
 3. **`AuthContext` stale closure**: callback `onAuthStateChange` menangkap `profile` saat mount (selalu `null`), sehingga `fetchProfile` dipanggil pada **setiap** event auth (termasuk `TOKEN_REFRESHED`).
 4. ~~Dashboard empty-state tidak pernah muncul~~ — **sudah diperbaiki**: sekarang mengecek `allRecentTx.length === 0`.
@@ -493,7 +506,7 @@ Daftar ini adalah perilaku **aktual** kode saat ini. Saat refactor, putuskan sec
 
 - Tidak ada type-check, lint, maupun test.
 - Query Supabase tersebar di komponen; tidak ada layer service.
-- File besar bercampur logika + JSX (transactions/index 681 baris, split-bill/edit 644, split-bill/add 626).
+- File besar bercampur logika + JSX (transactions/index, split-bill/SplitBillForm).
 - Duplikasi tinggi (§8).
 - Agregasi (sum) dilakukan di klien dengan menarik semua baris `amount` (sudah digabung jadi satu query per halaman; idealnya fungsi Postgres/RPC).
 - Cache TanStack Query baru dipakai di Dashboard dan Activity; halaman lain belum.
@@ -512,7 +525,8 @@ Daftar ini adalah perilaku **aktual** kode saat ini. Saat refactor, putuskan sec
 | Daftar & filter transaksi | `src/app/pages/transactions/index.tsx` |
 | Form transaksi | `src/app/pages/transactions/add.tsx` **dan** `edit.tsx` (duplikat, ubah keduanya) |
 | Ringkasan dashboard | `src/app/pages/Dashboard.tsx` |
-| Rumus split bill | `src/app/pages/split-bill/add.tsx` **dan** `edit.tsx` (duplikat, ubah keduanya) |
+| Rumus split bill | `src/app/pages/split-bill/calculate.ts` (+ samakan dengan mobile) |
+| Tampilan / alur split bill | `src/app/pages/split-bill/SplitBillForm.tsx` |
 | Budget plan | `src/app/pages/planning/{index,add,edit,detail}.tsx` |
 | Catatan | `src/app/pages/Notes.tsx` |
 | Wallet / kategori | `src/app/contexts/WalletCategoryContext.tsx`, `src/app/pages/master-data/*` |
