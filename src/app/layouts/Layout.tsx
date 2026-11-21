@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router';
-import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User, Split, DatabaseZap, Tag, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router';
+import { LayoutDashboard, ReceiptText, CalendarDays, Wallet, LogOut, ChevronDown, Moon, Sun, X, StickyNote, User, Split, DatabaseZap, Tag, Eye, EyeOff, MoreHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useVisibility } from '../contexts/VisibilityContext';
@@ -14,6 +14,12 @@ export function Layout() {
   const [isDark, setIsDark] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newFullName, setNewFullName] = useState(profile?.full_name || '');
+
+  // Phone "More" menu: pages that do not fit in the bottom navigation
+  const location = useLocation();
+  const [showMore, setShowMore] = useState(false);
+  const moreActive = location.pathname.startsWith('/master-data') || location.pathname.startsWith('/init');
+  useEffect(() => { setShowMore(false); }, [location.pathname]);
 
   useEffect(() => {
     // Initialize theme
@@ -198,7 +204,16 @@ export function Layout() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="max-w-5xl mx-auto p-4 md:p-8">
-          <Outlet />
+          {/* Pages are code-split (see routes.tsx); this shows while a page chunk loads */}
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center py-20">
+                <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <Outlet />
+          </Suspense>
         </div>
       </main>
 
@@ -209,10 +224,50 @@ export function Layout() {
         <MobileNavItem to="/planning" icon={<CalendarDays size={20} />} label="Plans" />
         <MobileNavItem to="/notes" icon={<StickyNote size={20} />} label="Notes" />
         <MobileNavItem to="/split-bill" icon={<Split size={20} />} label="Split" />
-        {/* {profile?.role === 'admin' && (
-          <MobileNavItem to="/init" icon={<DatabaseZap size={20} />} label="Init" />
-        )} */}
+        <button
+          type="button"
+          onClick={() => setShowMore(v => !v)}
+          aria-haspopup="menu"
+          aria-expanded={showMore}
+          className={`flex flex-col items-center justify-center flex-1 min-w-0 transition-all duration-300 ${moreActive || showMore ? 'text-primary' : 'text-muted-foreground'}`}
+        >
+          <div className={`p-1.5 mb-0.5 rounded-full transition-all duration-300 ${moreActive || showMore ? 'bg-primary/10 scale-110' : 'scale-100'}`}>
+            <MoreHorizontal size={20} />
+          </div>
+          <span className="text-[10px] font-extrabold tracking-wide">More</span>
+        </button>
       </nav>
+
+      {/* Mobile "More" menu — sits just above the bottom navigation */}
+      <AnimatePresence>
+        {showMore && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="md:hidden fixed inset-0 z-[45] bg-black/40"
+            onClick={() => setShowMore(false)}
+          >
+            <motion.div
+              role="menu"
+              onClick={(e) => e.stopPropagation()}
+              initial={{ y: 16 }}
+              animate={{ y: 0 }}
+              exit={{ y: 16 }}
+              transition={{ duration: 0.15 }}
+              className="absolute bottom-28 left-6 right-6 bg-card border border-border rounded-3xl shadow-2xl p-2"
+            >
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 px-3 pt-2 pb-1">Master Data</p>
+              <MoreMenuItem to="/master-data/wallets" icon={<Wallet size={18} />} label="Wallets" hint="Your accounts and payment sources" />
+              <MoreMenuItem to="/master-data/categories" icon={<Tag size={18} />} label="Categories" hint="Income and expense categories" />
+              {profile?.role === 'admin' && (
+                <MoreMenuItem to="/init" icon={<DatabaseZap size={18} />} label="Init Data" hint="Bulk import" />
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Edit Profile Modal */}
       <AnimatePresence>
@@ -279,7 +334,7 @@ function MobileNavItem({ to, icon, label }: { to: string; icon: React.ReactNode;
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        `flex flex-col items-center justify-center w-[72px] transition-all duration-300 ${isActive ? 'text-primary' : 'text-muted-foreground'
+        `flex flex-col items-center justify-center flex-1 min-w-0 transition-all duration-300 ${isActive ? 'text-primary' : 'text-muted-foreground'
         }`
       }
     >
@@ -291,6 +346,24 @@ function MobileNavItem({ to, icon, label }: { to: string; icon: React.ReactNode;
           <span className="text-[10px] font-extrabold tracking-wide">{label}</span>
         </>
       )}
+    </NavLink>
+  );
+}
+
+function MoreMenuItem({ to, icon, label, hint }: { to: string; icon: React.ReactNode; label: string; hint: string }) {
+  return (
+    <NavLink
+      to={to}
+      role="menuitem"
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-3 py-3 rounded-2xl transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-accent'}`
+      }
+    >
+      <div className="size-9 rounded-xl bg-accent flex items-center justify-center shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold leading-tight">{label}</p>
+        <p className="text-[11px] text-muted-foreground truncate">{hint}</p>
+      </div>
     </NavLink>
   );
 }

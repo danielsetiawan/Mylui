@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../lib/types';
+import { queryClient } from '../lib/queryClient';
 
 interface AuthContextType {
   user: User | null;
@@ -42,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchProfile(newUser.id);
       } else if (!newUser) {
         setProfile(null);
+        // Buang data akun sebelumnya dari cache saat logout / sesi habis
+        queryClient.clear();
       }
 
       setLoading(false);

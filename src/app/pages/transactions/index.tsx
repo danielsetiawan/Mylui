@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, Search, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, Tag, Wallet,
-  ChevronUp, ChevronDown, CalendarDays, ListTree, X, Link2,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarDays, ListTree, X, Link2,
   ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
   Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
   Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
@@ -10,6 +10,7 @@ import {
   Repeat, Coins, Receipt, Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Transaction, TransactionType } from '../../lib/types';
@@ -19,135 +20,124 @@ import { TransactionAdd } from './add';
 import { TransactionEdit } from './edit';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
 import { useVisibility } from '../../contexts/VisibilityContext';
+import { fetchAllRows, queryKeys } from '../../lib/queryClient';
+
+const PAGE_SIZE = 30;
+
+const TRANSACTION_SELECT =
+  '*, transaction_details(*), wallet:wallets!wallet_id(id,name,color), to_wallet:wallets!to_wallet_id(id,name,color), transaction_category:transaction_categories!category_id(id,name,color,icon)';
+
+type MonthIncome = { id: string, description: string, category: string, amount: number, date: string };
+const NO_INCOMES: MonthIncome[] = [];
+
+function monthBounds(yyyyMM: string) {
+  const [year, month] = yyyyMM.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return { start: `${yyyyMM}-01`, end: `${yyyyMM}-${lastDay}` };
+}
 
 export function Transactions() {
   const { user } = useAuth();
   const { monthOptions } = useMonthRange(); // ← global cached month list
   const { maskAmount } = useVisibility();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
   const [filterMonthYear, setFilterMonthYear] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [filterIncomeId, setFilterIncomeId] = useState<string>('all');
-  const [monthIncomes, setMonthIncomes] = useState<{ id: string, description: string, category: string, amount: number, date: string }[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [stats, setStats] = useState({ income: 0, expense: 0, balance: 0 });
 
   // Edit/Split State
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-
-  // Infinite Scroll State
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  useEffect(() => {
-    if (!user) return;
-    fetchTransactions(false);
-    fetchStats();
-  }, [user, filterType, filterMonthYear, filterIncomeId, debouncedSearchTerm]);
+  // ── Income list of the selected month (income filter + linked-income labels) ──
+  const { data: monthIncomes = NO_INCOMES } = useQuery({
+    queryKey: queryKeys.monthIncomes(user?.id, filterMonthYear),
+    enabled: !!user && !!filterMonthYear,
+    queryFn: async () => {
+      const { start, end } = monthBounds(filterMonthYear);
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('id, description, category, amount, date')
+        .eq('user_id', user!.id)
+        .eq('type', 'income')
+        .gte('date', start)
+        .lte('date', end)
+        .order('date', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as MonthIncome[];
+    },
+  });
 
-  // Separate effect for monthIncomes — only depends on user + filterMonthYear
-  useEffect(() => {
-    if (!user || !filterMonthYear) {
-      setMonthIncomes([]);
-      return;
-    }
-    const [year, month] = filterMonthYear.split('-').map(Number);
-    const lastDay = new Date(year, month, 0).getDate();
-    supabase
-      .from('transactions')
-      .select('id, description, category, amount, date')
-      .eq('user_id', user.id)
-      .eq('type', 'income')
-      .gte('date', `${filterMonthYear}-01`)
-      .lte('date', `${filterMonthYear}-${lastDay}`)
-      .order('date', { ascending: false })
-      .then(({ data }) => { if (data) setMonthIncomes(data as any[]); });
-  }, [user, filterMonthYear]);
-
-  const fetchStats = async () => {
-    if (!user) return;
-    try {
-      const dateFilters = filterMonthYear
-        ? (() => {
-            const [year, month] = filterMonthYear.split('-').map(Number);
-            const lastDay = new Date(year, month, 0).getDate();
-            return { start: `${filterMonthYear}-01`, end: `${filterMonthYear}-${lastDay}` };
-          })()
-        : null;
-
-      const buildQuery = (type: 'income' | 'expense') => {
+  // ── Summary stats: one query, summed per type on the client ──
+  // Only shown (and only fetched) when a month is selected.
+  const statsQuery = useQuery({
+    queryKey: queryKeys.transactionStats(user?.id, { type: filterType, month: filterMonthYear, incomeId: filterIncomeId }),
+    enabled: !!user && !!filterMonthYear,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { start, end } = monthBounds(filterMonthYear);
+      const types = filterType === 'income' ? ['income'] : filterType === 'expense' ? ['expense'] : ['income', 'expense'];
+      const rows = await fetchAllRows<{ type: string; amount: number }>(() => {
         let q = supabase
           .from('transactions')
-          .select('amount')
-          .eq('user_id', user.id)
-          .eq('type', type);
-        if (dateFilters) q = q.gte('date', dateFilters.start).lte('date', dateFilters.end);
+          .select('type, amount')
+          .eq('user_id', user!.id)
+          .in('type', types)
+          .gte('date', start)
+          .lte('date', end)
+          .order('date', { ascending: true })
+          .order('id', { ascending: true });
         if (filterIncomeId !== 'all') q = q.or(`id.eq.${filterIncomeId},linked_income_id.eq.${filterIncomeId}`);
         return q;
-      };
-
+      });
       let income = 0;
       let expense = 0;
-
-      if (filterType === 'income') {
-        const result = await buildQuery('income');
-        if (result.error) throw result.error;
-        income = (result.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
-      } else if (filterType === 'expense') {
-        const result = await buildQuery('expense');
-        if (result.error) throw result.error;
-        expense = (result.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
-      } else {
-        const [incomeResult, expenseResult] = await Promise.all([
-          buildQuery('income'),
-          buildQuery('expense'),
-        ]);
-        if (incomeResult.error) throw incomeResult.error;
-        if (expenseResult.error) throw expenseResult.error;
-        income = (incomeResult.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
-        expense = (expenseResult.data ?? []).reduce((acc: number, r: any) => acc + Number(r.amount ?? 0), 0);
+      for (const r of rows) {
+        if (r.type === 'income') income += Number(r.amount ?? 0);
+        else expense += Number(r.amount ?? 0);
       }
+      return { income, expense, balance: income - expense };
+    },
+  });
+  const stats = statsQuery.data ?? { income: 0, expense: 0, balance: 0 };
+  const statsLoading = statsQuery.isPending;
 
-      setStats({ income, expense, balance: income - expense });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
-
-  const fetchTransactions = async (isLoadMore = false) => {
-    if (!user) return;
-    if (isLoadMore) setLoadingMore(true); else setLoading(true);
-
-    try {
-      const start = isLoadMore ? transactions.length : 0;
-      const end = start + (isLoadMore ? 4 : 9);
-
+  // ── Transaction list: cached per filter combination, PAGE_SIZE rows per page ──
+  const listQuery = useInfiniteQuery({
+    queryKey: queryKeys.transactionList(user?.id, {
+      type: filterType, month: filterMonthYear, incomeId: filterIncomeId, search: debouncedSearchTerm,
+    }),
+    enabled: !!user,
+    initialPageParam: 0,
+    placeholderData: keepPreviousData, // keep the old list visible while a new filter loads
+    queryFn: async ({ pageParam }) => {
       let query = supabase
         .from('transactions')
-        .select('*, transaction_details(*), wallet:wallets!wallet_id(id,name,color), to_wallet:wallets!to_wallet_id(id,name,color), transaction_category:transaction_categories!category_id(id,name,color,icon)', { count: 'exact' })
-        .eq('user_id', user.id)
+        .select(TRANSACTION_SELECT)
+        .eq('user_id', user!.id)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
-        .range(start, end);
+        .order('id', { ascending: false })
+        // Ask for one row more than a page: its presence tells us there is a next
+        // page, without a separate (slow) exact count.
+        .range(pageParam, pageParam + PAGE_SIZE);
 
       if (filterType !== 'all') query = query.eq('type', filterType);
       if (filterMonthYear) {
-        const [year, month] = filterMonthYear.split('-').map(Number);
-        const lastDay = new Date(year, month, 0).getDate();
-        query = query.gte('date', `${filterMonthYear}-01`).lte('date', `${filterMonthYear}-${lastDay}`);
+        const { start, end } = monthBounds(filterMonthYear);
+        query = query.gte('date', start).lte('date', end);
       }
 
       if (filterIncomeId !== 'all') {
@@ -159,37 +149,49 @@ export function Transactions() {
         query = query.or(`description.ilike.%${debouncedSearchTerm}%,category.ilike.%${debouncedSearchTerm}%`);
       }
 
-      const { data, count, error } = await query;
+      const { data, error } = await query;
       if (error) throw error;
 
-      let finalData = data as Transaction[];
+      const rows = (data ?? []) as Transaction[];
+      return {
+        rows: rows.slice(0, PAGE_SIZE),
+        nextOffset: rows.length > PAGE_SIZE ? pageParam + PAGE_SIZE : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextOffset,
+  });
 
-      // Resolve linked_income using monthIncomes already in state
-      if (finalData.some(t => t.linked_income_id)) {
-        const incomeMap = new Map(monthIncomes.map(inc => [inc.id, inc]));
-        finalData = finalData.map(t => ({
-          ...t,
-          linked_income: t.linked_income_id ? (incomeMap.get(t.linked_income_id) || null) : null
-        }));
-      }
+  const { hasNextPage, isFetchingNextPage, fetchNextPage, isPlaceholderData } = listQuery;
+  const loading = listQuery.isPending;
 
-      if (isLoadMore) {
-        setTransactions(prev => [...prev, ...finalData]);
-      } else {
-        setTransactions(finalData);
-      }
-
-      if (count !== null) {
-        const currentCount = isLoadMore ? transactions.length + (data?.length || 0) : (data?.length || 0);
-        setHasMore(currentCount < count);
-      }
-    } catch (error: any) {
-      console.error('Error fetching transactions:', error);
+  useEffect(() => {
+    if (listQuery.isError) {
+      console.error('Error fetching transactions:', listQuery.error);
       toast.error('Failed to load transactions');
-    } finally {
-      if (isLoadMore) setLoadingMore(false); else setLoading(false);
     }
-  };
+  }, [listQuery.isError]);
+
+  // Flatten pages and attach linked_income from monthIncomes. Done at render time
+  // so the labels appear as soon as either request finishes, whichever is first.
+  const transactions = useMemo(() => {
+    const incomeMap = new Map(monthIncomes.map(inc => [inc.id, inc]));
+    const seen = new Set<string>();
+    const result: Transaction[] = [];
+    for (const page of listQuery.data?.pages ?? []) {
+      for (const t of page.rows) {
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        result.push(t.linked_income_id
+          ? { ...t, linked_income: (incomeMap.get(t.linked_income_id) || null) as any }
+          : t);
+      }
+    }
+    return result;
+  }, [listQuery.data, monthIncomes]);
+
+  // Everything derived from the transactions table (this page and the Dashboard)
+  const refreshTransactions = () =>
+    queryClient.invalidateQueries({ queryKey: queryKeys.transactions(user?.id) });
 
   const handleDeleteRequest = (id: string) => {
     setEditingTransaction(null);
@@ -202,15 +204,21 @@ export function Transactions() {
 
   const handleDelete = async () => {
     if (!transactionToDelete) return;
+    const deletedId = transactionToDelete;
     try {
       const { error } = await supabase
         .from('transactions')
         .delete()
-        .eq('id', transactionToDelete);
+        .eq('id', deletedId);
 
       if (error) throw error;
-      setTransactions(transactions.filter(t => t.id !== transactionToDelete));
-      fetchStats();
+      // Remove the row from the cached lists right away, then re-sync with the server
+      queryClient.setQueriesData({ queryKey: queryKeys.transactionLists(user?.id) }, (old: any) =>
+        old?.pages
+          ? { ...old, pages: old.pages.map((p: any) => ({ ...p, rows: p.rows.filter((t: Transaction) => t.id !== deletedId) })) }
+          : old
+      );
+      refreshTransactions();
       toast.success('Transaction deleted');
     } catch (error: any) {
       toast.error('Failed to delete transaction');
@@ -287,23 +295,54 @@ export function Transactions() {
     return months;
   }, [transactions, formatMonthYear, formatDateHeader]);
 
-  const observer = useRef<IntersectionObserver | null>(null);
-  const observerTarget = useCallback((node: HTMLDivElement | null) => {
-    if (loading || loadingMore || !hasMore) return;
-    if (observer.current) observer.current.disconnect();
+  // Infinite scroll: load the next page when the sentinel gets near the viewport
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasNextPage || isFetchingNextPage || isPlaceholderData) return;
 
-    observer.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        fetchTransactions(true);
-      }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) fetchNextPage();
     }, { rootMargin: '400px' });
 
-    if (node) observer.current.observe(node);
-  }, [loading, loadingMore, hasMore, transactions.length, filterType, filterMonthYear, debouncedSearchTerm]);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, isPlaceholderData, fetchNextPage, transactions.length]);
 
-  useEffect(() => {
-    return () => { if (observer.current) observer.current.disconnect(); };
-  }, []);
+  // Month switcher: monthOptions is ordered newest → oldest
+  const changeMonth = (value: string) => {
+    setFilterMonthYear(value);
+    setFilterIncomeId('all'); // Reset income filter on month change
+  };
+  const monthIndex = monthOptions.findIndex(m => m.value === filterMonthYear);
+  const olderMonth = monthIndex >= 0 ? monthOptions[monthIndex + 1]?.value : undefined;
+  const newerMonth = monthIndex > 0 ? monthOptions[monthIndex - 1]?.value : undefined;
+
+  const incomeFilter = monthIncomes.length > 0 && filterMonthYear ? (
+    <div className="relative h-full">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+        <Link2 size={16} />
+      </div>
+      <select
+        value={filterIncomeId}
+        onChange={(e) => setFilterIncomeId(e.target.value)}
+        aria-label="Filter by income"
+        className="w-full h-full bg-primary/5 border border-primary/20 text-primary rounded-2xl py-3 pl-9 pr-4 text-sm font-bold outline-none focus:ring-2 ring-primary/30 cursor-pointer appearance-none"
+      >
+        <option value="all">All Income</option>
+        {monthIncomes.map((inc) => (
+          <option key={inc.id} value={inc.id}>
+            {inc.description || 'Income'}
+          </option>
+        ))}
+      </select>
+    </div>
+  ) : null;
+
+  const openAddForm = () => {
+    setIsAdding(true);
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <motion.div
@@ -311,14 +350,15 @@ export function Transactions() {
       animate={{ opacity: 1 }}
       className="space-y-6 pb-20 relative"
     >
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <header className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-3xl font-extrabold tracking-tight">Activity</h1>
           <p className="text-muted-foreground">Manage your income and expenses.</p>
         </div>
+        {/* On phones the floating button below opens the form; this one only closes it */}
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+          className={`${isAdding ? 'flex' : 'hidden md:flex'} shrink-0 bg-primary text-primary-foreground px-4 md:px-6 py-3 rounded-2xl font-bold items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20`}
         >
           {isAdding ? <ChevronUp size={20} /> : <Plus size={20} />}
           {isAdding ? 'Close Form' : 'Add Transaction'}
@@ -328,85 +368,89 @@ export function Transactions() {
       <TransactionAdd
         isOpen={isAdding}
         onClose={() => setIsAdding(false)}
-        onSuccess={() => { setIsAdding(false); fetchTransactions(); fetchStats(); }}
+        onSuccess={() => { setIsAdding(false); refreshTransactions(); }}
         formatCurrency={formatCurrency}
       />
 
       <TransactionEdit
         transaction={editingTransaction}
         onClose={() => setEditingTransaction(null)}
-        onSuccess={() => { setEditingTransaction(null); fetchTransactions(); fetchStats(); }}
+        onSuccess={() => { setEditingTransaction(null); refreshTransactions(); }}
         onDeleteRequest={handleDeleteRequest}
         formatCurrency={formatCurrency}
       />
 
-      {/* Filters & Search */}
-      <div className="flex flex-col xl:flex-row gap-4">
-        {/* Left Side: Search & Date Filter */}
-        <div className="grid grid-cols-2 sm:flex sm:flex-1 gap-2">
-          <div className="relative group sm:flex-1 min-w-0">
+      {/* Filters — stay pinned to the top while the list scrolls */}
+      <div className="sticky top-0 z-30 -mx-4 px-4 md:-mx-8 md:px-8 -mt-3 mb-3 py-3 bg-background/90 backdrop-blur-md">
+        <div className="flex flex-wrap xl:flex-nowrap gap-2">
+          {/* Month switcher: previous / pick / next */}
+          <div className="flex items-center w-full sm:w-[250px] bg-card border border-border rounded-2xl p-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => olderMonth && changeMonth(olderMonth)}
+              disabled={!olderMonth}
+              aria-label="Previous month"
+              className="p-2 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="relative flex-1 min-w-0">
+              <CalendarDays size={16} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <select
+                value={filterMonthYear}
+                onChange={(e) => changeMonth(e.target.value)}
+                aria-label="Month"
+                className="w-full bg-transparent rounded-xl py-2 pl-8 pr-2 font-bold text-center [text-align-last:center] outline-none focus:ring-2 ring-primary/20 cursor-pointer appearance-none"
+              >
+                <option value="">All Time</option>
+                {monthOptions.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => newerMonth && changeMonth(newerMonth)}
+              disabled={!newerMonth}
+              aria-label="Next month"
+              className="p-2 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="relative group flex-1 min-w-[140px] xl:min-w-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
             <input
               type="text"
               placeholder="Search activity..."
+              aria-label="Search activity"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-card border border-border rounded-2xl py-3 pl-11 pr-4 sm:pr-10 font-bold outline-none focus:ring-2 ring-primary/20 transition-all h-full min-w-0"
+              className="w-full h-full bg-card border border-border rounded-2xl py-3 pl-11 pr-10 font-bold outline-none focus:ring-2 ring-primary/20 transition-all min-w-0"
             />
             {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground hidden sm:block">
+              <button onClick={() => setSearchTerm('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                 <X size={16} />
               </button>
             )}
           </div>
-          <div className="relative sm:flex-1 md:flex-none min-w-0">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-              <CalendarDays size={18} />
-            </div>
-            <select
-              value={filterMonthYear}
-              onChange={(e) => {
-                setFilterMonthYear(e.target.value);
-                setFilterIncomeId('all'); // Reset income filter on month change
-              }}
-              className="w-full bg-card border border-border rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20 cursor-pointer h-full md:min-w-[170px] appearance-none"
-            >
-              <option value="">All Time</option>
-              {monthOptions.map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
 
-        {/* Right Side: Type & Income filters */}
-        <div className="grid grid-cols-2 sm:flex gap-2 shrink-0 w-full xl:w-auto">
-          <div className="flex p-1 bg-card border border-border rounded-2xl md:w-fit justify-between sm:flex-1 md:flex-none">
+          {/* Type */}
+          <div className="flex p-1 bg-card border border-border rounded-2xl shrink-0">
             <FilterButton active={filterType === 'all'} onClick={() => setFilterType('all')} label="All" />
             <FilterButton active={filterType === 'income'} onClick={() => setFilterType('income')} label="In" />
             <FilterButton active={filterType === 'expense'} onClick={() => setFilterType('expense')} label="Out" />
           </div>
-          {monthIncomes.length > 0 && filterMonthYear && (
-            <div className="relative sm:flex-1 md:flex-none sm:min-w-[180px] sm:max-w-[220px] shrink-0">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-                <Link2 size={16} />
-              </div>
-              <select
-                value={filterIncomeId}
-                onChange={(e) => setFilterIncomeId(e.target.value)}
-                className="w-full h-full bg-primary/5 border border-primary/20 text-primary rounded-2xl py-3 pl-9 pr-4 text-sm font-bold outline-none focus:ring-2 ring-primary/30 cursor-pointer appearance-none"
-              >
-                <option value="all">All Income</option>
-                {monthIncomes.map((inc) => (
-                  <option key={inc.id} value={inc.id}>
-                    {inc.description || 'Pemasukan'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+
+          {/* Income filter — beside the type filter on wide screens */}
+          {incomeFilter && <div className="hidden xl:block xl:w-[190px] shrink-0">{incomeFilter}</div>}
         </div>
       </div>
+
+      {/* Income filter — smaller screens: its own row below, so the pinned bar stays short */}
+      {incomeFilter && <div className="xl:hidden sm:w-[250px]">{incomeFilter}</div>}
 
       {/* Summary Stats */}
       {filterMonthYear && (
@@ -422,10 +466,14 @@ export function Transactions() {
                   {t === 'income' ? <ArrowUpRight size={14} className="text-emerald-600 dark:text-emerald-600" /> : <ArrowDownRight size={14} className="text-rose-600 dark:text-rose-400" />}
                   <p className={`text-[10px] font-bold truncate ${t === 'income' ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>{t === 'income' ? 'Income' : 'Expense'}</p>
                 </div>
-                <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
-                  <span className="sm:hidden">{maskAmount(formatCompactCurrency(total))}</span>
-                  <span className="hidden sm:inline">{maskAmount(formatCurrency(total))}</span>
-                </div>
+                {statsLoading ? (
+                  <div className="h-4 sm:h-5 w-20 max-w-full rounded bg-current opacity-10 animate-pulse" />
+                ) : (
+                  <div title={formatCurrency(total)} className={`text-xs sm:text-sm font-black truncate ${t === 'income' ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
+                    <span className="sm:hidden">{maskAmount(formatCompactCurrency(total))}</span>
+                    <span className="hidden sm:inline">{maskAmount(formatCurrency(total))}</span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -434,24 +482,40 @@ export function Transactions() {
               <Wallet size={14} className="text-muted-foreground" />
               <p className="text-[10px] font-bold text-muted-foreground truncate">Balance</p>
             </div>
-            <div title={formatCurrency(stats.balance)} className={`text-xs sm:text-sm font-black truncate ${stats.balance >= 0 ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
-              <span className="sm:hidden">{maskAmount(formatCompactCurrency(stats.balance))}</span>
-              <span className="hidden sm:inline">{maskAmount(formatCurrency(stats.balance))}</span>
-            </div>
+            {statsLoading ? (
+              <div className="h-4 sm:h-5 w-20 max-w-full rounded bg-current opacity-10 animate-pulse" />
+            ) : (
+              <div title={formatCurrency(stats.balance)} className={`text-xs sm:text-sm font-black truncate ${stats.balance >= 0 ? 'text-emerald-600 dark:text-emerald-600' : 'text-rose-600 dark:text-rose-400'}`}>
+                <span className="sm:hidden">{maskAmount(formatCompactCurrency(stats.balance))}</span>
+                <span className="hidden sm:inline">{maskAmount(formatCurrency(stats.balance))}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Transaction List */}
       <div className="space-y-8">
-        {loading && transactions.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+        {loading || (isPlaceholderData && transactions.length === 0) ? (
+          <div className="space-y-3 animate-pulse">
+            <div className="h-3 w-40 rounded bg-accent" />
+            <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden divide-y divide-border">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="p-4 md:p-6 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-accent shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-1/2 rounded bg-accent" />
+                    <div className="h-3 w-1/3 rounded bg-accent" />
+                  </div>
+                  <div className="h-4 w-20 rounded bg-accent" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : transactions.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground bg-card border border-border rounded-3xl">No transactions found.</div>
         ) : (
-          <div className="space-y-8">
+          <div className={`space-y-8 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
             {groupedList.map((monthGroup) => (
               <div key={monthGroup.month} className="space-y-6">
                 {/* Month Header */}
@@ -487,13 +551,13 @@ export function Transactions() {
               </div>
             ))}
 
-            <div ref={observerTarget} className="h-4 w-full" />
-            {loadingMore && (
+            <div ref={sentinelRef} className="h-4 w-full" />
+            {isFetchingNextPage && (
               <div className="p-6 text-center">
                 <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto" />
               </div>
             )}
-            {!hasMore && transactions.length > 0 && (
+            {!hasNextPage && !isPlaceholderData && transactions.length > 0 && (
               <div className="p-6 text-center text-muted-foreground text-xs font-bold">
                 End of transactions
               </div>
@@ -501,6 +565,18 @@ export function Transactions() {
           </div>
         )}
       </div>
+
+      {/* Phones: floating button to add a transaction from anywhere in the list */}
+      {!isAdding && !editingTransaction && (
+        <button
+          type="button"
+          onClick={openAddForm}
+          aria-label="Add transaction"
+          className="md:hidden fixed bottom-28 right-6 z-40 size-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xl shadow-primary/30 active:scale-95 transition-transform"
+        >
+          <Plus size={26} />
+        </button>
+      )}
 
       <ConfirmationDialog
         isOpen={!!transactionToDelete}

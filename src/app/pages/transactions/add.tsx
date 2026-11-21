@@ -160,12 +160,12 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
 
                 {/* Wallet From */}
                 <QuickSelectWithAdd
-                  label={tab === 'transfer' ? 'From Wallet' : 'Wallet / Sumber'}
+                  label={tab === 'transfer' ? 'From Wallet' : 'Wallet'}
                   value={walletId}
                   options={wallets}
                   onChange={setWalletId}
                   onAdd={async (name) => addWallet({ name, icon: 'Wallet', color: '#10b981', balance: 0 })}
-                  placeholder="Pilih wallet..."
+                  placeholder="Select wallet..."
                   required
                 />
 
@@ -177,7 +177,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     options={wallets.filter(w => w.id !== walletId)}
                     onChange={setToWalletId}
                     onAdd={async (name) => addWallet({ name, icon: 'Wallet', color: '#3b82f6', balance: 0 })}
-                    placeholder="Pilih tujuan..."
+                    placeholder="Select destination..."
                     required
                   />
                 )}
@@ -190,7 +190,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     options={tab === 'expense' ? expenseCategories : incomeCategories}
                     onChange={setCategoryId}
                     onAdd={async (name) => addCategory({ name, icon: 'Tag', color: '#64748b', type: tab })}
-                    placeholder="Pilih kategori..."
+                    placeholder="Select category..."
                   />
                 )}
 
@@ -199,7 +199,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                        <Link2 size={12} /> Link to Income <span className="font-normal opacity-60">(opsional)</span>
+                        <Link2 size={12} /> Link to Income <span className="font-normal opacity-60">(optional)</span>
                       </label>
                       <select
                         value={incomeMonth}
@@ -216,7 +216,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                       onChange={e => setLinkedIncomeId(e.target.value)}
                       className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
                     >
-                      <option value="">Tidak ditautkan</option>
+                      <option value="">Not linked</option>
                       {localIncomeSources.map(src => (
                         <option key={src.id} value={src.id}>
                           {src.description || src.category} ({formatCurrency(src.amount)})
@@ -252,7 +252,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     rows={3}
-                    placeholder={tab === 'transfer' ? 'Catatan transfer (opsional)' : 'Catatan tambahan (opsional)'}
+                    placeholder={tab === 'transfer' ? 'Transfer note (optional)' : 'Additional note (optional)'}
                     className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
                   />
                 </div>
@@ -310,7 +310,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                           <input
                             type="text" value={d.name}
                             onChange={e => { const a = [...details]; a[i].name = e.target.value; setDetails(a); }}
-                            placeholder="Keterangan..."
+                            placeholder="Description..."
                             className="flex-1 bg-background border border-border rounded-lg py-2 px-3 text-sm font-semibold outline-none focus:border-primary"
                           />
                           <button type="button" onClick={() => setDetails(details.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-rose-500 p-1.5 rounded-lg">
@@ -318,7 +318,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                           </button>
                         </div>
                       ))}
-                      {details.length === 0 && <p className="text-xs text-muted-foreground italic">Klik "Add Row" untuk menambahkan detail.</p>}
+                      {details.length === 0 && <p className="text-xs text-muted-foreground italic">Click "Add Row" to add a detail.</p>}
                     </div>
                   </div>
                 </motion.div>

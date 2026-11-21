@@ -19,8 +19,8 @@ export function ConfirmationDialog({
   message,
   onConfirm,
   onCancel,
-  confirmText = 'Hapus',
-  cancelText = 'Batal',
+  confirmText = 'Delete',
+  cancelText = 'Cancel',
   variant = 'danger'
 }: ConfirmationDialogProps) {
   const getVariantStyles = () => {

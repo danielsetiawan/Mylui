@@ -85,7 +85,7 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
             className="bg-card border border-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
           >
             <div className="p-6 border-b border-border flex justify-between items-center">
-              <h3 className="text-xl font-black">Ubah Rencana</h3>
+              <h3 className="text-xl font-black">Edit Plan</h3>
               <button onClick={onClose} className="p-2 hover:bg-accent rounded-full">
                 <X size={20} />
               </button>
@@ -109,7 +109,7 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
                       inputMode="numeric"
                       value={nominalBudget.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} 
                       onChange={(e) => setNominalBudget(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Total nominal budget (otomatis dari item jika kosong)"
+                      placeholder="Total budget (uses item total if left empty)"
                       className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20"
                     />
                   </div>

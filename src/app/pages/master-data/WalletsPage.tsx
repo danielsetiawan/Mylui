@@ -60,14 +60,14 @@ export function WalletsPage() {
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight">Wallets</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Kelola sumber pembayaran & rekening kamu</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage your accounts and payment sources</p>
           </div>
         </div>
         <button
           onClick={() => setIsAdding(true)}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
         >
-          <Plus size={18} /> Tambah
+          <Plus size={18} /> Add
         </button>
       </div>
 
@@ -76,17 +76,17 @@ export function WalletsPage() {
         {isAdding && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-              <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Wallet Baru</h3>
+              <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">New Wallet</h3>
               <input
                 type="text" autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setIsAdding(false); }}
-                placeholder="Nama wallet (e.g. Blu by BCA, GoPay...)"
+                placeholder="Wallet name (e.g. Blu by BCA, GoPay...)"
                 className="w-full bg-accent/50 border-none rounded-xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
               />
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-muted-foreground">Warna:</span>
+                <span className="text-xs font-bold text-muted-foreground">Color:</span>
                 {COLORS.map(c => (
-                  <button key={c} type="button" onClick={() => setNewColor(c)}
+                  <button key={c} type="button" onClick={() => setNewColor(c)} aria-label={`Color ${c}`}
                     className={`w-6 h-6 rounded-full border-2 transition-transform ${newColor === c ? 'scale-125 border-foreground' : 'border-transparent'}`}
                     style={{ backgroundColor: c }} />
                 ))}
@@ -94,11 +94,11 @@ export function WalletsPage() {
               <div className="flex gap-2">
                 <button onClick={handleAdd} disabled={saving || !newName.trim()}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold disabled:opacity-50 transition-all">
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Simpan
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Save
                 </button>
                 <button onClick={() => { setIsAdding(false); setNewName(''); }}
                   className="px-4 py-2.5 bg-accent text-muted-foreground rounded-xl font-bold hover:bg-accent/80 transition-all">
-                  Batal
+                  Cancel
                 </button>
               </div>
             </div>
@@ -110,7 +110,7 @@ export function WalletsPage() {
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         {wallets.length === 0 ? (
           <div className="p-10 text-center text-muted-foreground text-sm">
-            Belum ada wallet. Tambahkan wallet pertama kamu!
+            No wallets yet. Add your first wallet!
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -128,13 +128,13 @@ export function WalletsPage() {
                     />
                     <div className="flex gap-1">
                       {COLORS.map(c => (
-                        <button key={c} type="button" onClick={() => setEditColor(c)}
+                        <button key={c} type="button" onClick={() => setEditColor(c)} aria-label={`Color ${c}`}
                           className={`w-5 h-5 rounded-full border-2 ${editColor === c ? 'border-foreground scale-125' : 'border-transparent'}`}
                           style={{ backgroundColor: c }} />
                       ))}
                     </div>
-                    <button onClick={() => handleUpdate(w.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={16} /></button>
-                    <button onClick={() => setEditingId(null)} className="p-1.5 text-muted-foreground hover:bg-accent rounded-lg"><X size={16} /></button>
+                    <button onClick={() => handleUpdate(w.id)} aria-label="Save wallet" className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={16} /></button>
+                    <button onClick={() => setEditingId(null)} aria-label="Cancel editing" className="p-1.5 text-muted-foreground hover:bg-accent rounded-lg"><X size={16} /></button>
                   </div>
                 ) : (
                   <div className="flex-1 flex items-center justify-between">
@@ -142,11 +142,11 @@ export function WalletsPage() {
                       <p className="font-bold">{w.name}</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => { setEditingId(w.id); setEditName(w.name); setEditColor(w.color); }}
+                      <button onClick={() => { setEditingId(w.id); setEditName(w.name); setEditColor(w.color); }} aria-label={`Edit ${w.name}`}
                         className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-colors">
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => setDeleteId(w.id)}
+                      <button onClick={() => setDeleteId(w.id)} aria-label={`Delete ${w.name}`}
                         className="p-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
                         <Trash2 size={16} />
                       </button>
@@ -161,8 +161,8 @@ export function WalletsPage() {
 
       <ConfirmationDialog
         isOpen={!!deleteId}
-        title="Hapus Wallet"
-        message="Yakin mau hapus wallet ini? Transaksi yang terhubung tidak akan ikut terhapus."
+        title="Delete Wallet"
+        message="Are you sure you want to delete this wallet? Its transactions will not be deleted."
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />

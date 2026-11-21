@@ -217,7 +217,7 @@ export function Notes() {
                 <p className="text-[10px] sm:text-sm text-muted-foreground line-clamp-3 sm:line-clamp-5 whitespace-pre-wrap">{note.content}</p>
               </div>
               <div className="flex items-center justify-between pt-2 sm:pt-4 border-t border-border mt-2 sm:mt-4">
-                <span className="text-[8px] sm:text-[10px] font-bold text-muted-foreground">{new Date(note.created_at).toLocaleDateString('id-ID')}</span>
+                <span className="text-[8px] sm:text-[10px] font-bold text-muted-foreground">{new Date(note.created_at).toLocaleDateString('en-GB')}</span>
                 <button
                   onClick={() => setNoteToDelete(note)}
                   className="p-1.5 sm:p-2 text-muted-foreground hover:text-rose-600 transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100"
@@ -289,7 +289,9 @@ export function Notes() {
       <ConfirmationDialog
         isOpen={!!noteToDelete}
         title="Delete Note"
-        message="Are you sure? This note will be permanently removed."
+        message="Are you sure you want to delete this note? This can't be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
         onConfirm={handleDeleteNote}
         onCancel={() => setNoteToDelete(null)}
       />

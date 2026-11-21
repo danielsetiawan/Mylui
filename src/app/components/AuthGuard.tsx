@@ -17,7 +17,7 @@ export function AuthGuard() {
             animate={{ rotate: [-8, 8, -8, 8, -5, 5, 0] }}
             transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.6, ease: 'easeInOut' }}
           />
-          <p className="text-sm text-muted-foreground font-medium">Memuat aplikasi...</p>
+          <p className="text-sm text-muted-foreground font-medium">Loading...</p>
         </div>
       </div>
     );

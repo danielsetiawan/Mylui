@@ -16,7 +16,7 @@ import { useAuth } from './AuthContext';
 
 export interface MonthOption {
   value: string;   // "2025-03"
-  label: string;   // "Maret 2025"
+  label: string;   // "March 2025"
 }
 
 interface MonthRangeContextValue {
@@ -33,11 +33,11 @@ const MonthRangeContext = createContext<MonthRangeContextValue>({
 
 export const useMonthRange = () => useContext(MonthRangeContext);
 
-// ── Helper: format "yyyy-MM" → human-readable label (Indonesian) ──────────
+// ── Helper: format "yyyy-MM" → human-readable label (English, like the rest of the UI) ──
 function formatMonthLabel(yyyyMM: string): string {
   const [y, m] = yyyyMM.split('-').map(Number);
   const date = new Date(y, m - 1, 1);
-  return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date);
 }
 
 // ── Helper: generate all months between two "yyyy-MM" strings ─────────────
