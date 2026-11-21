@@ -97,7 +97,7 @@ Browser
 Karakteristik penting:
 
 - **Tidak ada layer data access.** Setiap halaman menulis query `supabase.from(...)` sendiri di dalam komponen.
-- **Cache data hanya di Dashboard dan Activity** lewat TanStack Query (`src/app/lib/queryClient.ts`). Halaman lain (Planning, Notes, Split Bill, Master Data, Init) masih mengambil data dengan `useEffect` setiap kali dibuka. Lihat "Cache data" di bawah.
+- **Cache data hanya di Dashboard, Activity, dan Planning** lewat TanStack Query (`src/app/lib/queryClient.ts`). Halaman lain (Planning, Notes, Split Bill, Master Data, Init) masih mengambil data dengan `useEffect` setiap kali dibuka. Lihat "Cache data" di bawah.
 - **Tidak ada state management library** untuk state klien. Hanya `useState` + 4 React Context.
 - **Semua form "add/edit" adalah komponen yang dirender oleh halaman index**, bukan route tersendiri. File `pages/*/add.tsx`, `edit.tsx`, `detail.tsx` **bukan route**.
 - **Keamanan data bergantung sepenuhnya pada RLS Supabase.** Klien selalu menambahkan `.eq('user_id', user.id)` pada SELECT, tapi UPDATE/DELETE hanya memfilter `id`. Isi policy RLS **[TIDAK DIKETAHUI]** — tidak ada file SQL/migration di repo.
@@ -210,7 +210,7 @@ Hook: `useVisibility()` → `{ amountsVisible, toggleAmounts, maskAmount(formatt
 
 - Fitur "sembunyikan nominal". `maskAmount` mengembalikan `'••••••'` jika disembunyikan.
 - Disimpan di `localStorage['amountsVisible']` (`'false'` = tersembunyi; default terlihat).
-- Dipakai di: Layout (tombol mata), Dashboard, Transactions. **Tidak dipakai** di Planning, Split Bill, Init → nominal di sana tetap terlihat.
+- Dipakai di: Layout (tombol mata), Dashboard, Transactions, Planning (kartu & detail). **Tidak dipakai** di Split Bill, Init → nominal di sana tetap terlihat.
 
 ### 6.5 State lokal di `localStorage`
 
@@ -250,7 +250,7 @@ Yang ditampilkan:
 | Kartu "Income" / "Expense" | total bulan ini + tren % vs bulan lalu | Tren `null` → teks "First month" |
 | "Spending by Category" | expense bulan ini dikelompokkan per kategori | Donut (Recharts `PieChart`) + daftar berbatang. 5 kategori terbesar + "Other (n)". Nama/warna/ikon diambil dari `categories` di `WalletCategoryContext`; transaksi tanpa `category_id` dikelompokkan menurut teks legacy `category`, atau "Uncategorized". Kategori tanpa warna memakai `FALLBACK_COLORS`. Inner layout memakai container query Tailwind (`@container`, `@lg:`) supaya donut pindah ke atas saat kartu sempit |
 | "Last 7 Days" | income & expense per hari, 6 hari lalu s.d. hari ini | Bar chart (Recharts `BarChart`). Warna dari CSS variable (`var(--primary)`, `var(--border)`, `var(--muted-foreground)`, `var(--card)`) supaya terbaca di light & dark mode. Label hari `en-US`, hari ini = "Today" |
-| "Active Budget Plans" | 3 plan terbaru | Tidak difilter status meski judulnya "Active" |
+| "Active Budget Plans" | 3 plan terbaru berstatus `active` (`budget_plan_items(estimate)` ikut diambil) | Baris kedua tiap plan = total Planned. Kartu tidak tampil jika tidak ada plan aktif |
 | "Recent Activity" | 6 transaksi terbaru | Tombol "Record Transaction" hanya `navigate('/transactions')` |
 
 Tata letak: kartu total 3 kolom mulai `md`; area bawah 3 kolom (kiri 2/3: kategori, 7 hari, plans; kanan: Recent Activity) baru mulai `xl`, di bawahnya bertumpuk satu kolom.
@@ -295,6 +295,7 @@ File: `index.tsx` (list + filter + delete), `add.tsx` (`TransactionAdd`, panel i
 | To Wallet | — | — | ✓ wajib, ≠ wallet asal | `to_wallet_id` |
 | Category (difilter sesuai tipe) | opsional | opsional | — (null) | `category_id` |
 | Link to Income (pilih bulan → pilih income) | opsional | — | Form **tambah** expense otomatis memilih income "gaji" terbaru bulan berjalan: income yang nama kategorinya, `description`, atau `category` legacy cocok dengan `/\b(gaji\|salary)\b/i` (`SALARY_PATTERN` di `add.tsx`). Default hanya dipasang selama pengguna belum memilih sendiri (`linkTouched`); memilih "Not linked" atau mengganti bulan menghentikannya, dan reset form memasangnya lagi. Mengganti bulan juga mengosongkan pilihan. Form edit tidak memakai default ini | `linked_income_id` |
+| Plan + Plan item (`PlanLinkFields.tsx`) | opsional | — | Hanya expense, di form tambah **dan** edit. Daftar plan dari `usePlanOptions` (`lib/planOptions.ts`): Active dulu, lalu Planning; Completed hanya jika sudah tertaut. Tidak ada default. Memilih item yang punya kategori mengisi Category jika masih kosong | `budget_plan_id`, `budget_plan_item_id` |
 | Date | ✓ | ✓ | ✓ | `date` (`yyyy-MM-dd`) |
 | Description / Notes | opsional | opsional | opsional | `description` |
 | Detail Items (baris nama + nominal) | opsional | opsional | — | tabel `transaction_details` |
@@ -311,15 +312,17 @@ File: `index.tsx` (list + filter + delete), `add.tsx` (`TransactionAdd`, panel i
 
 ### 7.4 Planning — `pages/planning/`
 
-File: `index.tsx` (grid kartu), `add.tsx` (`PlanningAdd` modal), `edit.tsx` (`PlanningEdit` modal), `detail.tsx` (`PlanningDetail` modal).
+File: `index.tsx` (grid kartu), `add.tsx` (`PlanningAdd` modal, juga untuk Duplicate lewat prop `initial`), `edit.tsx` (`PlanningEdit` modal), `detail.tsx` (`PlanningDetail` modal).
 
 - Entitas: `budget_plans` (header) + `budget_plan_items` (item estimasi).
 - Status: `'planning' | 'active' | 'completed'`. Plan baru selalu `'planning'`. Status diubah dari modal detail (langsung UPDATE).
 - `total_budget`: jika user mengisi "Total Budget Plan" > 0 pakai nilai itu; jika kosong/0 → jumlah `estimate` semua item.
-- Kalkulasi tampilan: `Used = Σ item.estimate`, `Remaining = total_budget − Used`, progress = `Used / total_budget` (di-clamp 100% pada kartu).
-- Edit: UPDATE header → **DELETE semua item → INSERT ulang** (id item berubah setiap edit; tidak atomik).
-- List: 10 per halaman, tombol "Load More Plans", filter bulan terhadap `created_at`, pencarian `title`/`description` (ILIKE, debounce 500 ms).
-- Planning **tidak terhubung** ke transaksi nyata. "Used" adalah estimasi, bukan realisasi.
+- Kalkulasi tampilan (label UI sejak 2026-11-22): **Planned** = `Σ item.estimate`; **Unallocated** = `total_budget − Planned` (label berubah jadi **Over budget**, merah, jika negatif); progress = `Planned / total_budget` (di-clamp 100% pada kartu). Dulu berlabel "Used"/"Remaining", yang menyesatkan karena ini estimasi, bukan pengeluaran nyata.
+- Edit (web): UPDATE header → UPDATE hanya item yang berubah → INSERT item baru → DELETE item yang dihapus. Id item yang tidak dihapus **tetap stabil**; jika gagal di tengah, sisa yang mungkin terjadi adalah item berlebih, bukan item hilang. (Mobile masih delete-all-then-insert.)
+- Duplicate: tombol di modal detail membuka form tambah terisi judul "… (copy)", deskripsi, dan item (tanpa id). Budget disalin hanya jika berbeda dari total item (artinya diketik manual); jika sama, dibiarkan kosong agar tetap otomatis. Plan baru selalu berstatus `planning`.
+- List: TanStack `useInfiniteQuery`, key `queryKeys.planList` (semua key plan diawali `['budget_plans', userId]`, di-invalidate setelah tambah/edit/hapus/ubah status — termasuk preview Dashboard). 10 per halaman (meminta 11 baris untuk tahu ada halaman berikutnya), tombol "Load More Plans", filter bulan terhadap `created_at`, pencarian `title`/`description` (ILIKE, debounce 500 ms; teks highlight di-escape). Skeleton saat pertama dimuat. Semua nominal di kartu & detail melewati `maskAmount`.
+- **Realisasi (sejak 2026-11-22)**: expense bisa ditautkan ke plan (dan item) dari form Activity. Kartu plan menampilkan **Budget / Spent / Left** (progress bar = Spent ÷ Budget, merah jika lewat) plus baris "N items · Rp X planned · M expenses". Modal detail: ringkasan Budget/Spent/Left; daftar **Spending (n)** berisi expense yang tertaut (deskripsi, tanggal, nominal; maks. 100) — ini rincian utama, sehingga plan **tidak perlu item** sama sekali. Hanya jika plan punya item: baris Planned/Unallocated, bagian Budget Details (tiap item "spent of estimate" dengan bar) dan baris "Other spending" untuk expense yang tidak dikaitkan ke item. Data: `usePlanSpending` (semua expense bertautan, satu query) dan `usePlanTransactions(planId)` di `lib/planSpending.ts`; keduanya ber-key `['transactions', userId, …]` sehingga ikut diperbarui setelah transaksi disimpan/dihapus.
+- Item plan punya kategori opsional (`category_id`) yang dipilih di form tambah/edit plan; ikon item memakai kategori itu, atau tebakan dari nama ("makan", "tiket", …) jika kosong. Pemetaan ikon bersama ada di `src/app/lib/categoryIcons.ts` (juga dipakai Dashboard & Activity).
 - Alur modal: klik kartu → `selectedPlan` → Detail; tombol edit → `isEditing = true` → Detail ditutup, Edit dibuka dengan plan yang sama.
 
 ### 7.5 Notes — `pages/Notes.tsx`
@@ -509,7 +512,7 @@ Daftar ini adalah perilaku **aktual** kode saat ini. Saat refactor, putuskan sec
 - File besar bercampur logika + JSX (transactions/index, split-bill/SplitBillForm).
 - Duplikasi tinggi (§8).
 - Agregasi (sum) dilakukan di klien dengan menarik semua baris `amount` (sudah digabung jadi satu query per halaman; idealnya fungsi Postgres/RPC).
-- Cache TanStack Query baru dipakai di Dashboard dan Activity; halaman lain belum.
+- Cache TanStack Query dipakai di Dashboard, Activity, dan Planning; Notes, Split Bill, Master Data, Init belum.
 - Chunk utama masih ±650 kB (React, Supabase, Motion, Router); Recharts sudah terpisah di chunk Dashboard.
 - `package.json`: `name` masih `@figma/my-make-file`; `react`/`react-dom` berada di `peerDependencies` (optional), bukan `dependencies`.
 
@@ -527,10 +530,10 @@ Daftar ini adalah perilaku **aktual** kode saat ini. Saat refactor, putuskan sec
 | Ringkasan dashboard | `src/app/pages/Dashboard.tsx` |
 | Rumus split bill | `src/app/pages/split-bill/calculate.ts` (+ samakan dengan mobile) |
 | Tampilan / alur split bill | `src/app/pages/split-bill/SplitBillForm.tsx` |
-| Budget plan | `src/app/pages/planning/{index,add,edit,detail}.tsx` |
+| Budget plan | `src/app/pages/planning/{index,add,edit,detail}.tsx`; realisasi: `src/app/lib/planSpending.ts`, `src/app/lib/planOptions.ts`, `src/app/pages/transactions/PlanLinkFields.tsx`; skema: `supabase/migrations/` |
 | Catatan | `src/app/pages/Notes.tsx` |
 | Wallet / kategori | `src/app/contexts/WalletCategoryContext.tsx`, `src/app/pages/master-data/*` |
-| Menambah ikon kategori | `CategoriesPage.tsx` (`AVAILABLE_ICONS`) + `ICON_MAP` di `transactions/index.tsx` dan `Dashboard.tsx` + pemetaan ikon di mobile |
+| Menambah ikon kategori | `CategoriesPage.tsx` (`AVAILABLE_ICONS`) + `src/app/lib/categoryIcons.ts` (`ICON_MAP`) + pemetaan ikon di mobile |
 | Sembunyikan nominal | `src/app/contexts/VisibilityContext.tsx` |
 | Warna / tema | `src/styles/theme.css`, skrip tema di `index.html`, toggle di `Layout.tsx` |
 | Impor massal admin | `src/app/pages/Init.tsx` |

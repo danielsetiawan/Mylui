@@ -8,6 +8,7 @@ import { useWalletCategory } from '../../contexts/WalletCategoryContext';
 import { QuickSelectWithAdd } from '../../components/QuickSelectWithAdd';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
 import { toast } from 'sonner';
+import { PlanLinkFields } from './PlanLinkFields';
 
 interface Props {
   isOpen: boolean;
@@ -42,6 +43,9 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
   const [linkedIncomeId, setLinkedIncomeId] = useState('');
   // true once the user picks a linked income (or "Not linked") themselves
   const [linkTouched, setLinkTouched] = useState(false);
+  // Planning realization: which plan (and item) this expense belongs to
+  const [planId, setPlanId] = useState('');
+  const [planItemId, setPlanItemId] = useState('');
   const [incomeMonth, setIncomeMonth] = useState(thisMonthLocal);
   const [localIncomeSources, setLocalIncomeSources] = useState<Transaction[]>([]);
   const { monthOptions } = useMonthRange();
@@ -87,6 +91,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
     setAmount(''); setCategoryId(''); setWalletId('');
     setToWalletId(''); setDescription(''); setLinkedIncomeId('');
     setLinkTouched(false); setIncomeMonth(thisMonthLocal());
+    setPlanId(''); setPlanItemId('');
     setDate(todayLocal());
     setDetails([]); setShowDetails(false);
   };
@@ -112,6 +117,8 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
         to_wallet_id: tab === 'transfer' ? (toWalletId || null) : null,
         category_id: tab !== 'transfer' ? (categoryId || null) : null,
         linked_income_id: tab === 'expense' ? (linkedIncomeId || null) : null,
+        budget_plan_id: tab === 'expense' ? (planId || null) : null,
+        budget_plan_item_id: tab === 'expense' && planId ? (planItemId || null) : null,
       };
 
       const { data: txData, error } = await supabase
@@ -259,6 +266,16 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                       ))}
                     </select>
                   </div>
+                )}
+
+                {tab === 'expense' && (
+                  <PlanLinkFields
+                    planId={planId}
+                    itemId={planItemId}
+                    enabled={isOpen}
+                    onChange={(p, i) => { setPlanId(p); setPlanItemId(i); }}
+                    onItemCategory={c => { if (!categoryId) setCategoryId(c); }}
+                  />
                 )}
               </div>
 

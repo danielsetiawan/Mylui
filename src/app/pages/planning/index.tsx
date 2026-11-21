@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronRight, PlusCircle, Clock, CheckCircle2, Target, Search, Calendar, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
@@ -10,22 +11,28 @@ import { PlanningAdd } from './add';
 import { PlanningEdit } from './edit';
 import { PlanningDetail } from './detail';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
+import { useVisibility } from '../../contexts/VisibilityContext';
+import { queryKeys } from '../../lib/queryClient';
+import { usePlanSpending } from '../../lib/planSpending';
+
+const PAGE_SIZE = 10;
+
+/** Sum of the item estimates = what has been planned so far (not real spending) */
+export const plannedOf = (plan: BudgetPlan) =>
+  (plan.budget_plan_items || []).reduce((sum, item) => sum + Number(item.estimate || 0), 0);
 
 export function Planning() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { monthOptions } = useMonthRange();
-  const [plans, setPlans] = useState<BudgetPlan[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { maskAmount } = useVisibility();
+  const { spendingOf, isPending: spendingPending } = usePlanSpending();
   const [isCreating, setIsCreating] = useState(false);
+  // Plan to copy into the create form (Duplicate)
+  const [duplicateFrom, setDuplicateFrom] = useState<BudgetPlan | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<BudgetPlan | null>(null);
   const [planToDelete, setPlanToDelete] = useState<BudgetPlan | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-
-  // Pagination states
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const ITEMS_PER_PAGE = 10;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -36,62 +43,60 @@ export function Planning() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  useEffect(() => {
-    if (user) {
-      setPage(0);
-      setPlans([]);
-      fetchPlans(0);
-    }
-  }, [user, debouncedSearchTerm, filterMonthYear]);
-
-  const fetchPlans = async (pageNum: number) => {
-    if (!user) return;
-    try {
-      if (pageNum === 0) setLoading(true);
-      else setIsFetchingMore(true);
-
+  // Plans list: cached per filter, PAGE_SIZE per page (asks for one extra row to know if there is more)
+  const listQuery = useInfiniteQuery({
+    queryKey: queryKeys.planList(user?.id, { month: filterMonthYear, search: debouncedSearchTerm }),
+    enabled: !!user,
+    initialPageParam: 0,
+    placeholderData: keepPreviousData,
+    queryFn: async ({ pageParam }) => {
       let query = supabase
         .from('budget_plans')
         .select('*, budget_plan_items(*)')
-        .eq('user_id', user.id)
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
-        .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1);
+        .order('id', { ascending: false })
+        .range(pageParam, pageParam + PAGE_SIZE);
 
       if (filterMonthYear) {
         const [year, month] = filterMonthYear.split('-').map(Number);
         const lastDay = new Date(year, month, 0).getDate();
         query = query.gte('created_at', `${filterMonthYear}-01T00:00:00`).lte('created_at', `${filterMonthYear}-${lastDay}T23:59:59`);
       }
-
       if (debouncedSearchTerm) {
         query = query.or(`title.ilike.%${debouncedSearchTerm}%,description.ilike.%${debouncedSearchTerm}%`);
       }
 
       const { data, error } = await query;
       if (error) throw error;
+      const rows = (data ?? []) as BudgetPlan[];
+      return {
+        rows: rows.slice(0, PAGE_SIZE),
+        nextOffset: rows.length > PAGE_SIZE ? pageParam + PAGE_SIZE : undefined,
+      };
+    },
+    getNextPageParam: (last) => last.nextOffset,
+  });
 
-      const newPlans = data as BudgetPlan[];
-      if (pageNum === 0) {
-        setPlans(newPlans);
-      } else {
-        setPlans(prev => [...prev, ...newPlans]);
-      }
-      
-      setHasMore(newPlans.length === ITEMS_PER_PAGE);
-    } catch (error: any) {
-      console.error('Error fetching plans:', error);
+  useEffect(() => {
+    if (listQuery.isError) {
+      console.error('Error fetching plans:', listQuery.error);
       toast.error('Failed to load plans');
-    } finally {
-      setLoading(false);
-      setIsFetchingMore(false);
     }
-  };
+  }, [listQuery.isError]);
 
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchPlans(nextPage);
-  };
+  const plans = useMemo(() => {
+    const seen = new Set<string>();
+    return (listQuery.data?.pages ?? []).flatMap(p => p.rows).filter(p => (seen.has(p.id) ? false : (seen.add(p.id), true)));
+  }, [listQuery.data]);
+  const loading = listQuery.isPending;
+  const hasMore = !!listQuery.hasNextPage;
+  const isFetchingMore = listQuery.isFetchingNextPage;
+
+  // Everything built from budget_plans (this page and the Dashboard preview)
+  const refreshPlans = () => queryClient.invalidateQueries({ queryKey: queryKeys.plans(user?.id) });
+
+  const handleLoadMore = () => listQuery.fetchNextPage();
 
   const handleDeletePlan = async () => {
     if (!planToDelete) return;
@@ -101,8 +106,8 @@ export function Planning() {
         .delete()
         .eq('id', planToDelete.id);
       if (error) throw error;
-      setPlans(plans.filter(p => p.id !== planToDelete.id));
       if (selectedPlan?.id === planToDelete.id) setSelectedPlan(null);
+      refreshPlans();
       toast.success('Plan deleted');
     } catch (error: any) {
       toast.error('Failed to delete');
@@ -128,6 +133,10 @@ export function Planning() {
     }
     return formatCurrency(val);
   };
+
+  // Respect the "hide amounts" eye toggle on everything shown on this page
+  const money = (val: number) => maskAmount(formatCurrency(val));
+  const moneyCompact = (val: number) => maskAmount(formatCompactCurrency(val));
 
 
   const statusConfig = {
@@ -186,11 +195,18 @@ export function Planning() {
       </div>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 transition-opacity ${listQuery.isPlaceholderData ? 'opacity-60' : ''}`}>
         {loading ? (
-          <div className="col-span-full flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-          </div>
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-card border border-border rounded-2xl p-4 sm:p-5 space-y-3 animate-pulse">
+              <div className="h-5 w-1/2 rounded bg-accent" />
+              <div className="h-3 w-2/3 rounded bg-accent" />
+              <div className="h-1.5 w-full rounded-full bg-accent" />
+              <div className="flex justify-between pt-3 border-t border-border">
+                <div className="h-4 w-20 rounded bg-accent" /><div className="h-4 w-20 rounded bg-accent" /><div className="h-4 w-20 rounded bg-accent" />
+              </div>
+            </div>
+          ))
         ) : plans.length === 0 ? (
           <div className="col-span-full bg-card border border-border border-dashed rounded-3xl p-12 text-center flex flex-col items-center gap-4">
             <div className="p-4 bg-accent rounded-full text-muted-foreground opacity-30">
@@ -214,9 +230,11 @@ export function Planning() {
           plans.map((plan) => {
             const status = statusConfig[plan.status];
             const items = plan.budget_plan_items || [];
-            const totalEstimate = items.reduce((sum, item) => sum + item.estimate, 0);
-            const sisaValue = plan.total_budget - totalEstimate;
-            const progress = plan.total_budget > 0 ? Math.min(totalEstimate / plan.total_budget, 1) * 100 : 0;
+            const planned = plannedOf(plan);
+            const { spent, count } = spendingOf(plan.id);
+            const left = plan.total_budget - spent;
+            const over = left < 0;
+            const progress = plan.total_budget > 0 ? Math.min(spent / plan.total_budget, 1) * 100 : 0;
             return (
               <div 
                 key={plan.id}
@@ -236,10 +254,10 @@ export function Planning() {
                     <HighlightMatch text={plan.description || 'No description'} match={debouncedSearchTerm} />
                   </p>
                   
-                  {/* Progress Bar */}
+                  {/* Progress: real spending against the budget */}
                   <div className="w-full h-1.5 bg-primary/10 rounded-full mb-3 overflow-hidden">
                     <div 
-                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-rose-500' : 'bg-primary'}`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -247,30 +265,39 @@ export function Planning() {
                   <div className="flex items-end justify-between border-t border-border pt-3 mt-auto">
                     <div className="flex-1 min-w-0 pr-2">
                       <p className="text-[8px] font-bold text-muted-foreground mb-0">Budget</p>
-                      <div title={formatCurrency(plan.total_budget)} className="text-sm font-black text-primary truncate leading-none">
-                        <span className="sm:hidden">{formatCompactCurrency(plan.total_budget)}</span>
-                        <span className="hidden sm:inline">{formatCurrency(plan.total_budget)}</span>
+                      <div title={money(plan.total_budget)} className="text-sm font-black text-primary truncate leading-none">
+                        <span className="sm:hidden">{moneyCompact(plan.total_budget)}</span>
+                        <span className="hidden sm:inline">{money(plan.total_budget)}</span>
                       </div>
                     </div>
-                    {/* Used */}
+                    {/* Spent = expenses linked to this plan */}
                     <div className="flex-1 min-w-0 text-center px-1">
-                      <p className="text-[8px] font-bold text-muted-foreground mb-0 text-center">Used</p>
-                      <div title={formatCurrency(totalEstimate)} className="text-sm font-black text-foreground truncate leading-none text-center">
-                        <span className="sm:hidden">{formatCompactCurrency(totalEstimate)}</span>
-                        <span className="hidden sm:inline">{formatCurrency(totalEstimate)}</span>
+                      <p className="text-[8px] font-bold text-muted-foreground mb-0 text-center">Spent</p>
+                      <div title={money(spent)} className="text-sm font-black text-foreground truncate leading-none text-center">
+                        {spendingPending ? <span className="inline-block h-3.5 w-16 rounded bg-accent animate-pulse" /> : (
+                          <>
+                            <span className="sm:hidden">{moneyCompact(spent)}</span>
+                            <span className="hidden sm:inline">{money(spent)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    {/* Remaining */}
+                    {/* Left = budget − spent */}
                     <div className="flex-1 min-w-0 text-right pl-2">
-                      <p className="text-[8px] font-bold text-muted-foreground mb-0 text-right">Remaining</p>
-                      <div title={formatCurrency(sisaValue)} className={`text-sm font-black truncate leading-none text-right ${sisaValue < 0 ? 'text-rose-500' : 'text-primary'}`}>
-                        <span className="sm:hidden">{formatCompactCurrency(sisaValue)}</span>
-                        <span className="hidden sm:inline">{formatCurrency(sisaValue)}</span>
+                      <p className="text-[8px] font-bold text-muted-foreground mb-0 text-right">{over ? 'Over budget' : 'Left'}</p>
+                      <div title={money(left)} className={`text-sm font-black truncate leading-none text-right ${over ? 'text-rose-500' : 'text-primary'}`}>
+                        {spendingPending ? <span className="inline-block h-3.5 w-16 rounded bg-accent animate-pulse" /> : (
+                          <>
+                            <span className="sm:hidden">{moneyCompact(left)}</span>
+                            <span className="hidden sm:inline">{money(left)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="mt-2 text-[10px] text-muted-foreground font-medium shrink-0">
-                    <span>{(plan.budget_plan_items || []).length} detail items</span>
+                  <div className="mt-2 text-[10px] text-muted-foreground font-medium shrink-0 flex justify-between gap-2">
+                    <span>{items.length} {items.length === 1 ? 'item' : 'items'} · {money(planned)} planned</span>
+                    <span>{count} {count === 1 ? 'expense' : 'expenses'}</span>
                   </div>
                 </div>
               </div>
@@ -293,8 +320,9 @@ export function Planning() {
 
       <PlanningAdd 
         isOpen={isCreating}
-        onClose={() => setIsCreating(false)}
-        onSuccess={() => { setIsCreating(false); setPage(0); fetchPlans(0); }}
+        initial={duplicateFrom}
+        onClose={() => { setIsCreating(false); setDuplicateFrom(null); }}
+        onSuccess={() => { setIsCreating(false); setDuplicateFrom(null); refreshPlans(); }}
         formatCurrency={formatCurrency}
       />
 
@@ -303,20 +331,28 @@ export function Planning() {
         onClose={() => setSelectedPlan(null)}
         onEditRequest={() => setIsEditing(true)}
         onDeleteRequest={(p) => { setPlanToDelete(p); setSelectedPlan(null); }}
+        onDuplicateRequest={(p) => { setSelectedPlan(null); setDuplicateFrom(p); setIsCreating(true); }}
         onStatusChange={(p, s) => {
-          setPlans(plans.map(it => it.id === p.id ? { ...it, status: s } : it));
+          // Update the cached lists right away, then re-sync (also refreshes the Dashboard preview)
+          queryClient.setQueriesData({ queryKey: queryKeys.plans(user?.id) }, (old: any) =>
+            old?.pages
+              ? { ...old, pages: old.pages.map((pg: any) => ({ ...pg, rows: pg.rows.map((it: BudgetPlan) => (it.id === p.id ? { ...it, status: s } : it)) })) }
+              : old
+          );
           if (selectedPlan?.id === p.id) {
             setSelectedPlan({ ...selectedPlan, status: s });
           }
+          refreshPlans();
         }}
-        formatCurrency={formatCurrency}
-        formatCompactCurrency={formatCompactCurrency}
+        spending={selectedPlan ? spendingOf(selectedPlan.id) : undefined}
+        formatCurrency={money}
+        formatCompactCurrency={moneyCompact}
       />
 
       <PlanningEdit 
         plan={isEditing ? selectedPlan : null}
         onClose={() => { setIsEditing(false); setSelectedPlan(null); }}
-        onSuccess={() => { setIsEditing(false); setSelectedPlan(null); setPage(0); fetchPlans(0); }}
+        onSuccess={() => { setIsEditing(false); setSelectedPlan(null); refreshPlans(); }}
         formatCurrency={formatCurrency}
       />
 
@@ -335,7 +371,8 @@ export function Planning() {
 
 function HighlightMatch({ text, match }: { text: string, match: string }) {
   if (!match.trim()) return <>{text}</>;
-  const parts = text.split(new RegExp(`(${match})`, 'gi'));
+  const escaped = match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
   return (
     <>
       {parts.map((part, i) => 

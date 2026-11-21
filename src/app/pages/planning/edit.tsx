@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { BudgetPlan, BudgetPlanItem } from '../../lib/types';
 import { toast } from 'sonner';
+import { useWalletCategory } from '../../contexts/WalletCategoryContext';
 
 interface Props {
   plan: BudgetPlan | null;
@@ -13,6 +14,8 @@ interface Props {
 }
 
 export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props) {
+  const { categories } = useWalletCategory();
+  const expenseCategories = categories.filter(c => c.type === 'expense');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [nominalBudget, setNominalBudget] = useState('');
@@ -39,6 +42,20 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
     const calculatedBudget = validItems.reduce((acc, item) => acc + (parseFloat(item.estimate!.toString()) || 0), 0);
     const finalBudget = explicitBudget > 0 ? explicitBudget : calculatedBudget;
 
+    // Save only what changed, instead of deleting every item and inserting them again
+    // (that lost all items if the insert failed, and changed every item id).
+    // Order: update → insert → delete, so a failure part-way leaves extra items, never missing ones.
+    const original = plan.budget_plan_items || [];
+    const originalById = new Map(original.map(o => [o.id, o]));
+    const kept = validItems.filter(i => i.id && originalById.has(i.id));
+    const toUpdate = kept.filter(i => {
+      const o = originalById.get(i.id!)!;
+      return o.name !== i.name || Number(o.estimate) !== parseFloat(i.estimate!.toString()) || (o.category_id || null) !== (i.category_id || null);
+    });
+    const toInsert = validItems.filter(i => !i.id || !originalById.has(i.id));
+    const keptIds = new Set(kept.map(i => i.id));
+    const toDelete = original.filter(o => !keptIds.has(o.id)).map(o => o.id);
+
     try {
       const { error: planError } = await supabase
         .from('budget_plans')
@@ -46,16 +63,24 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
         .eq('id', plan.id);
       if (planError) throw planError;
 
-      await supabase.from('budget_plan_items').delete().eq('plan_id', plan.id);
-      
-      if (validItems.length > 0) {
-        const itemsPayload = validItems.map(item => ({
-          plan_id: plan.id,
-          name: item.name!,
-          estimate: parseFloat(item.estimate!.toString()),
-        }));
-        const { error: itemsError } = await supabase.from('budget_plan_items').insert(itemsPayload);
+      const updates = await Promise.all(toUpdate.map(item =>
+        supabase.from('budget_plan_items')
+          .update({ name: item.name!, estimate: parseFloat(item.estimate!.toString()), category_id: item.category_id || null })
+          .eq('id', item.id!)
+      ));
+      const updateError = updates.find(r => r.error)?.error;
+      if (updateError) throw updateError;
+
+      if (toInsert.length > 0) {
+        const { error: itemsError } = await supabase.from('budget_plan_items').insert(
+          toInsert.map(item => ({ plan_id: plan.id, name: item.name!, estimate: parseFloat(item.estimate!.toString()), category_id: item.category_id || null }))
+        );
         if (itemsError) throw itemsError;
+      }
+
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase.from('budget_plan_items').delete().in('id', toDelete);
+        if (deleteError) throw deleteError;
       }
 
       toast.success('Plan updated successfully!');
@@ -145,7 +170,21 @@ export function PlanningEdit({ plan, onClose, onSuccess, formatCurrency }: Props
                           className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-bold outline-none"
                         />
                       </div>
-                      <div className="w-36">
+                      {/* Category: gives the item its icon and pre-fills linked expenses */}
+                      <div className="w-32 sm:w-40 shrink-0">
+                        <select
+                          value={item.category_id || ''}
+                          onChange={(e) => updateItem(index, 'category_id', e.target.value || null)}
+                          aria-label="Item category"
+                          className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-bold outline-none appearance-none truncate"
+                        >
+                          <option value="">No category</option>
+                          {expenseCategories.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-28 sm:w-36 shrink-0">
                         <input 
                           type="text"
                           inputMode="numeric"

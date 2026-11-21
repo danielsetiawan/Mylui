@@ -104,6 +104,8 @@ Notasi kolom "Sumber": **W** = dipakai web, **M** = dipakai mobile. Tipe adalah 
 | `to_wallet_id` | uuid FK → `wallets`, nullable | W M | Hanya untuk `type = 'transfer'` |
 | `category_id` | uuid FK → `transaction_categories`, nullable | W M | `null` untuk transfer |
 | `linked_income_id` | uuid FK → `transactions.id`, nullable | W M | Hanya untuk `type = 'expense'`: menautkan pengeluaran ke sumber pemasukan |
+| `budget_plan_id` | uuid FK → `budget_plans.id`, nullable, `ON DELETE SET NULL` | W | **Ditambah 2026-11-22** (`supabase/migrations/20261122_plan_realization.sql`). Hanya untuk expense: pengeluaran ini bagian dari plan mana. Dijumlahkan sebagai "Spent" di Planning |
+| `budget_plan_item_id` | uuid FK → `budget_plan_items.id`, nullable, `ON DELETE SET NULL` | W | **Ditambah 2026-11-22**. Opsional, hanya jika `budget_plan_id` terisi: item plan yang dibayar. Mobile tidak mengirim kolom ini sehingga edit dari mobile tidak menghapus tautan |
 | `created_at` | timestamptz | W M | Urutan sekunder list |
 
 Relasi yang dipakai di embed PostgREST (nama FK harus tetap bisa di-resolve):
@@ -161,12 +163,15 @@ Rincian item di dalam satu transaksi (mis. isi struk).
 
 | Kolom | Tipe (dugaan) | Keterangan |
 |---|---|---|
-| `id` | uuid PK | **Tidak stabil** — kedua klien menghapus semua item lalu insert ulang setiap edit |
+| `id` | uuid PK | Web (sejak 2026-11-22) mempertahankan id item saat edit; **mobile masih menghapus semua item lalu insert ulang**, jadi id tetap bisa berubah jika plan diedit dari mobile |
 | `plan_id` | uuid FK → `budget_plans` | |
 | `name` | text | |
 | `estimate` | numeric | |
+| `category_id` | uuid FK → `transaction_categories.id`, nullable, `ON DELETE SET NULL` | **Ditambah 2026-11-22** (web saja). Ikon item di Planning, dan kategori default saat expense ditautkan ke item ini. Hilang jika plan diedit dari mobile (mobile menghapus & insert ulang item tanpa kolom ini) |
 
-Nilai turunan (dihitung di klien, tidak disimpan): `used = Σ estimate`, `remaining = total_budget − used`.
+Nilai turunan (dihitung di klien, tidak disimpan): `planned = Σ estimate`, `unallocated = total_budget − planned`; sejak 2026-11-22 juga **realisasi**: `spent = Σ amount transaksi expense dengan budget_plan_id = plan.id`, per item `Σ … budget_plan_item_id = item.id`, `left = total_budget − spent` (web: `src/app/lib/planSpending.ts`). Mobile belum menampilkan maupun mengisi tautan ini.
+
+**Migrasi**: kolom tautan dibuat oleh `supabase/migrations/20261122_plan_realization.sql` (dijalankan manual di SQL Editor Supabase; file berisi juga perintah undo). Kode web **membutuhkan** kolom ini: tanpa migrasi, daftar Activity dan form expense akan error.
 Hapus plan: klien hanya menghapus header; item diasumsikan cascade **[TIDAK DIKETAHUI]**.
 
 ### 3.7 `notes`

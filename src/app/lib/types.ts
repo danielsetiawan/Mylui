@@ -40,6 +40,8 @@ export interface Transaction {
   to_wallet_id?: string | null;  // only for 'transfer' type
   category_id?: string | null;
   linked_income_id?: string | null;
+  budget_plan_id?: string | null;       // Planning realization (see supabase/migrations/20261122_plan_realization.sql)
+  budget_plan_item_id?: string | null;
   created_at?: string;
   transaction_details?: TransactionDetail[];
   // Joined data
@@ -47,6 +49,7 @@ export interface Transaction {
   to_wallet?: Wallet;
   transaction_category?: TransactionCategory;
   linked_income?: Pick<Transaction, 'id' | 'description' | 'category' | 'amount' | 'date'> | null;
+  budget_plan?: { id: string; title: string } | null;
 }
 
 export interface BudgetPlanItem {
@@ -54,6 +57,7 @@ export interface BudgetPlanItem {
   plan_id: string;
   name: string;
   estimate: number;
+  category_id?: string | null;
 }
 
 export interface BudgetPlan {

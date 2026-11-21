@@ -1,25 +1,42 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { BudgetPlanItem } from '../../lib/types';
+import { BudgetPlan, BudgetPlanItem } from '../../lib/types';
 import { toast } from 'sonner';
+import { useWalletCategory } from '../../contexts/WalletCategoryContext';
 
 interface Props {
   isOpen: boolean;
+  /** Prefill from an existing plan (Duplicate). Item ids are not copied, so new items are created. */
+  initial?: BudgetPlan | null;
   onClose: () => void;
   onSuccess: () => void;
   formatCurrency: (val: number) => string;
 }
 
-export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Props) {
+export function PlanningAdd({ isOpen, initial, onClose, onSuccess, formatCurrency }: Props) {
   const { user } = useAuth();
+  const { categories } = useWalletCategory();
+  const expenseCategories = categories.filter(c => c.type === 'expense');
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [nominalBudget, setNominalBudget] = useState('');
   const [newItems, setNewItems] = useState<Partial<BudgetPlanItem>[]>([]);
+
+  // Duplicate: copy title, description, items and (if it was typed in) the budget
+  useEffect(() => {
+    if (!isOpen || !initial) return;
+    const items = initial.budget_plan_items || [];
+    const itemTotal = items.reduce((sum, i) => sum + Number(i.estimate || 0), 0);
+    setTitle(`${initial.title} (copy)`);
+    setDescription(initial.description || '');
+    // A budget equal to the item total was calculated, not typed: leave it empty so it stays automatic
+    setNominalBudget(initial.total_budget && initial.total_budget !== itemTotal ? String(initial.total_budget) : '');
+    setNewItems(items.map(i => ({ name: i.name, estimate: i.estimate, category_id: i.category_id ?? null })));
+  }, [isOpen, initial]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +70,7 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
           plan_id: planData.id,
           name: item.name!,
           estimate: parseFloat(item.estimate!.toString()),
+          category_id: item.category_id || null,
         }));
         
         const { error: itemsError } = await supabase.from('budget_plan_items').insert(itemsPayload);
@@ -95,7 +113,7 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
             className="bg-card border border-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
           >
             <div className="p-6 border-b border-border flex justify-between items-center">
-              <h3 className="text-xl font-black">Create New Budget Plan</h3>
+              <h3 className="text-xl font-black">{initial ? 'Duplicate Plan' : 'Create New Budget Plan'}</h3>
               <button onClick={resetForm} className="p-2 hover:bg-accent rounded-full">
                 <X size={20} />
               </button>
@@ -155,7 +173,21 @@ export function PlanningAdd({ isOpen, onClose, onSuccess, formatCurrency }: Prop
                           className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-bold outline-none"
                         />
                       </div>
-                      <div className="w-36">
+                      {/* Category: gives the item its icon and pre-fills linked expenses */}
+                      <div className="w-32 sm:w-40 shrink-0">
+                        <select
+                          value={item.category_id || ''}
+                          onChange={(e) => updateItem(index, 'category_id', e.target.value || null)}
+                          aria-label="Item category"
+                          className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-bold outline-none appearance-none truncate"
+                        >
+                          <option value="">No category</option>
+                          {expenseCategories.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-28 sm:w-36 shrink-0">
                         <input 
                           type="text"
                           inputMode="numeric"

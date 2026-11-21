@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, Search, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Calendar, Tag, Wallet,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarDays, ListTree, X, Link2,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarDays, ListTree, X, Link2, Target,
   ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
   Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
   Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
@@ -12,6 +12,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
+import { getCategoryIcon } from '../../lib/categoryIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Transaction, TransactionType } from '../../lib/types';
 import { toast } from 'sonner';
@@ -25,7 +26,7 @@ import { fetchAllRows, queryKeys } from '../../lib/queryClient';
 const PAGE_SIZE = 30;
 
 const TRANSACTION_SELECT =
-  '*, transaction_details(*), wallet:wallets!wallet_id(id,name,color), to_wallet:wallets!to_wallet_id(id,name,color), transaction_category:transaction_categories!category_id(id,name,color,icon)';
+  '*, transaction_details(*), wallet:wallets!wallet_id(id,name,color), to_wallet:wallets!to_wallet_id(id,name,color), transaction_category:transaction_categories!category_id(id,name,color,icon), budget_plan:budget_plans!budget_plan_id(id,title)';
 
 type MonthIncome = { id: string, description: string, category: string, amount: number, date: string };
 const NO_INCOMES: MonthIncome[] = [];
@@ -603,21 +604,6 @@ function HighlightMatch({ text, match }: { text: string, match: string }) {
   );
 }
 
-// Maps icon name string (stored in DB) to a Lucide icon component
-const ICON_MAP: Record<string, React.ElementType> = {
-  Tag, ShoppingBag, Utensils, Car, Plane, Home, Briefcase, Gamepad2, Heart, Music, BookOpen,
-  Gift, Coffee, Dumbbell, ShoppingCart, Zap, CreditCard, PiggyBank, TrendingUp, Bus, Bike,
-  Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star, ArrowUpRight, ArrowDownRight,
-  ArrowRightLeft, Wallet, Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Compass,
-  Mountain, Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
-  Map: MapIcon, Repeat, Coins, Receipt, Landmark
-};
-
-function getCategoryIcon(iconName?: string | null): React.ElementType {
-  if (iconName && ICON_MAP[iconName]) return ICON_MAP[iconName];
-  return Tag;
-}
-
 function FilterButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
     <button
@@ -691,6 +677,12 @@ function FilterButton({ active, onClick, label }: { active: boolean, onClick: ()
                 <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                   <Tag size={12} />
                   {categoryBadgeName}
+                </span>
+              )}
+              {transaction.budget_plan && (
+                <span className="text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                  <Target size={10} />
+                  {transaction.budget_plan.title}
                 </span>
               )}
               {transaction.linked_income && (

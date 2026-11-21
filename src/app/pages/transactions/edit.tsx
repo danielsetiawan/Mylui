@@ -8,6 +8,7 @@ import { useWalletCategory } from '../../contexts/WalletCategoryContext';
 import { QuickSelectWithAdd } from '../../components/QuickSelectWithAdd';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
 import { toast } from 'sonner';
+import { PlanLinkFields } from './PlanLinkFields';
 
 interface Props {
   transaction: Transaction | null;
@@ -29,6 +30,8 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
   const [editDescription, setEditDescription] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editLinkedIncomeId, setEditLinkedIncomeId] = useState('');
+  const [editPlanId, setEditPlanId] = useState('');
+  const [editPlanItemId, setEditPlanItemId] = useState('');
   const [editIncomeMonth, setEditIncomeMonth] = useState(new Date().toISOString().substring(0, 7));
   const [localIncomeSources, setLocalIncomeSources] = useState<Transaction[]>([]);
   const { monthOptions } = useMonthRange();
@@ -47,6 +50,8 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
       setEditDescription(transaction.description || '');
       setEditDate(transaction.date);
       setEditLinkedIncomeId(transaction.linked_income_id || '');
+      setEditPlanId(transaction.budget_plan_id || '');
+      setEditPlanItemId(transaction.budget_plan_item_id || '');
       // *** BUG FIX: Use the linked income's month, NOT the expense's month ***
       // If we use the expense month, the income won't appear in the dropdown
       const linkedMonth = transaction.linked_income?.date?.substring(0, 7);
@@ -88,6 +93,8 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
         to_wallet_id: editType === 'transfer' ? (editToWalletId || null) : null,
         category_id: editType !== 'transfer' ? (editCategoryId || null) : null,
         linked_income_id: editType === 'expense' ? (editLinkedIncomeId || null) : null,
+        budget_plan_id: editType === 'expense' ? (editPlanId || null) : null,
+        budget_plan_item_id: editType === 'expense' && editPlanId ? (editPlanItemId || null) : null,
       };
 
       const { error: txError } = await supabase
@@ -260,6 +267,16 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                         ))}
                       </select>
                     </div>
+                  )}
+
+                  {editType === 'expense' && (
+                    <PlanLinkFields
+                      planId={editPlanId}
+                      itemId={editPlanItemId}
+                      enabled={!!transaction}
+                      onChange={(p, i) => { setEditPlanId(p); setEditPlanItemId(i); }}
+                      onItemCategory={c => { if (!editCategoryId) setEditCategoryId(c); }}
+                    />
                   )}
                 </div>
 
