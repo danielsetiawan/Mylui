@@ -66,7 +66,7 @@ Tooling yang **tidak ada**: `tsconfig.json`, package `typescript`, ESLint, Prett
 │       ├── components/
 │       │   ├── AuthGuard.tsx
 │       │   ├── ConfirmationDialog.tsx
-│       │   ├── QuickSelectWithAdd.tsx
+│       │   ├── ChipSelect.tsx
 │       │   ├── figma/ImageWithFallback.tsx   ← TIDAK DIPAKAI
 │       │   └── ui/                           ← 48 file shadcn/ui, SELURUHNYA TIDAK DIPAKAI
 │       └── pages/             ← lihat §7
@@ -301,7 +301,8 @@ File: `index.tsx` (list + filter + delete), `add.tsx` (`TransactionAdd`, panel i
 | Detail Items (baris nama + nominal) | opsional | opsional | — | tabel `transaction_details` |
 
 - Kolom legacy `category` (teks) selalu diisi `''` oleh form ini.
-- Wallet dan Category memakai `QuickSelectWithAdd`: dropdown + tombol "+" untuk membuat master data baru secara inline (wallet baru: icon `'Wallet'`, balance `0`; kategori baru: icon `'Tag'`, color `#64748b`, type sesuai tab).
+- Wallet dan Category memakai `ChipSelect` (`components/ChipSelect.tsx`, sejak 2026-11-22): semua pilihan tampil sebagai chip berwarna+ikon yang tinggal diklik, diurutkan dari yang paling sering dipakai (8 pertama terlihat, sisanya di "+N more"; chip terpilih selalu terlihat). Tombol "+" membuat master data baru secara inline (wallet baru: icon `'Wallet'`, balance `0`; kategori baru: icon `'Tag'`, color `#64748b`). Category bisa dibatalkan dengan klik ulang; Wallet tidak.
+- Kebiasaan pengguna dihitung oleh `useEntryHints` (`lib/entryHints.ts`) dari 500 transaksi terakhir (key `['transactions', userId, 'entry-hints']`): urutan wallet & kategori, wallet transaksi income/expense terakhir, dan peta deskripsi → kategori. Form **tambah** memakai ini untuk (1) memilih otomatis wallet terakhir saat form kosong/di-reset, (2) menebak kategori dari deskripsi (cocok persis, lalu kata pertama ≥ 3 huruf; kategori terbanyak menang, harus sesuai tipe) — label "picked from description" muncul, tebakan hanya mengisi kategori yang kosong/hasil tebakan dan tidak pernah menimpa pilihan manual. Form edit hanya memakai urutan chip.
 - Detail yang valid (nama terisi & nominal ≠ kosong) di-insert setelah header. **Jumlah detail tidak divalidasi terhadap `amount`.**
 
 **Edit (`TransactionEdit`)**: form sama, bisa mengganti tipe. Update header, lalu upsert manual tiap detail (update jika punya `id`, insert jika belum). Hapus detail = langsung DELETE ke DB saat tombol hapus ditekan (tidak menunggu Save). Ada tombol "Save Details Only". Bulan pemilih income diinisialisasi dari `transaction.linked_income.date` (fallback ke bulan transaksi).
@@ -422,7 +423,7 @@ Alat impor massal untuk admin: memasukkan banyak transaksi **expense** untuk use
 |---|---|---|---|
 | `AuthGuard` | `components/AuthGuard.tsx` | — | Lihat §5 |
 | `ConfirmationDialog` | `components/ConfirmationDialog.tsx` | `isOpen, title, message, onConfirm, onCancel, confirmText='Hapus', cancelText='Batal', variant='danger'\|'warning'\|'info'` | Tombol konfirmasi memanggil `onConfirm()` **lalu** `onCancel()` |
-| `QuickSelectWithAdd` | `components/QuickSelectWithAdd.tsx` | `label, value, options[{id,name}], onChange(id), onAdd(name) → Promise<Option\|null>, placeholder, required` | `<select>` native + mode tambah inline |
+| `ChipSelect` | `components/ChipSelect.tsx` | `label, value, options[{id,name,color?,icon?}], onChange(id), onAdd(name) → Promise<Option\|null>, order?, maxVisible?, allowDeselect?, hint?` | Chip satu-klik untuk wallet/kategori di form transaksi (menggantikan `QuickSelectWithAdd` yang sudah dihapus) |
 
 Komponen/utility yang **diduplikasi** antar file (kandidat ekstraksi):
 

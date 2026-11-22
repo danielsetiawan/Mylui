@@ -5,7 +5,8 @@ import { supabase } from '../../lib/supabase';
 import { Transaction, TransactionType } from '../../lib/types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletCategory } from '../../contexts/WalletCategoryContext';
-import { QuickSelectWithAdd } from '../../components/QuickSelectWithAdd';
+import { ChipSelect } from '../../components/ChipSelect';
+import { useEntryHints } from '../../lib/entryHints';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
 import { toast } from 'sonner';
 import { PlanLinkFields } from './PlanLinkFields';
@@ -37,6 +38,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
   const { monthOptions } = useMonthRange();
   const [editDetails, setEditDetails] = useState<{ id?: string; name: string; amount: number | '' }[]>([]);
 
+  const hints = useEntryHints(!!transaction);
   const expenseCategories = categories.filter(c => c.type === 'expense');
   const incomeCategories = categories.filter(c => c.type === 'income');
 
@@ -204,36 +206,37 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                   </div>
 
                   {/* Wallet From */}
-                  <QuickSelectWithAdd
+                  <ChipSelect
                     label={editType === 'transfer' ? 'From Wallet' : 'Wallet'}
                     value={editWalletId}
                     options={wallets}
+                    order={hints.walletOrder}
                     onChange={setEditWalletId}
                     onAdd={async name => addWallet({ name, icon: 'Wallet', color: '#10b981', balance: 0 })}
-                    placeholder="Select wallet..."
                   />
 
                   {/* To Wallet */}
                   {editType === 'transfer' && (
-                    <QuickSelectWithAdd
+                    <ChipSelect
                       label="To Wallet"
                       value={editToWalletId}
                       options={wallets.filter(w => w.id !== editWalletId)}
+                      order={hints.walletOrder}
                       onChange={setEditToWalletId}
                       onAdd={async name => addWallet({ name, icon: 'Wallet', color: '#3b82f6', balance: 0 })}
-                      placeholder="Select destination..."
                     />
                   )}
 
                   {/* Category */}
                   {editType !== 'transfer' && (
-                    <QuickSelectWithAdd
+                    <ChipSelect
                       label="Category"
                       value={editCategoryId}
                       options={editType === 'expense' ? expenseCategories : incomeCategories}
+                      order={hints.categoryOrder}
+                      allowDeselect
                       onChange={setEditCategoryId}
                       onAdd={async name => addCategory({ name, icon: 'Tag', color: '#64748b', type: editType as 'income' | 'expense' })}
-                      placeholder="Select category..."
                     />
                   )}
 
@@ -262,7 +265,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                         <option value="">Not linked</option>
                         {localIncomeSources.map(src => (
                           <option key={src.id} value={src.id}>
-                            {src.description || src.category} ({src.amount.toLocaleString('id-ID')})
+                            {src.description || src.category || 'Income'}
                           </option>
                         ))}
                       </select>

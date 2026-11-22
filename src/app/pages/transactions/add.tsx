@@ -5,7 +5,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Transaction, TransactionType } from '../../lib/types';
 import { useWalletCategory } from '../../contexts/WalletCategoryContext';
-import { QuickSelectWithAdd } from '../../components/QuickSelectWithAdd';
+import { ChipSelect } from '../../components/ChipSelect';
+import { useEntryHints } from '../../lib/entryHints';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
 import { toast } from 'sonner';
 import { PlanLinkFields } from './PlanLinkFields';
@@ -46,6 +47,9 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
   // Planning realization: which plan (and item) this expense belongs to
   const [planId, setPlanId] = useState('');
   const [planItemId, setPlanItemId] = useState('');
+  // true while the category was filled in by guessCategory (not clicked by the user)
+  const [categoryGuessed, setCategoryGuessed] = useState(false);
+  const hints = useEntryHints(isOpen);
   const [incomeMonth, setIncomeMonth] = useState(thisMonthLocal);
   const [localIncomeSources, setLocalIncomeSources] = useState<Transaction[]>([]);
   const { monthOptions } = useMonthRange();
@@ -87,11 +91,34 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
   const expenseCategories = categories.filter(c => c.type === 'expense');
   const incomeCategories = categories.filter(c => c.type === 'income');
 
+  // Pre-select the wallet you used last (the form is reset to empty after each save)
+  useEffect(() => {
+    if (!isOpen || walletId || !hints.lastWalletId) return;
+    if (wallets.some(w => w.id === hints.lastWalletId)) setWalletId(hints.lastWalletId);
+  }, [isOpen, walletId, hints.lastWalletId, wallets]);
+
+  // Guess the category from the description ("bus" -> the category you used for "bus" before).
+  // Never overrides a category the user picked; a guess is replaced or cleared as they type.
+  useEffect(() => {
+    if (!isOpen || tab === 'transfer') return;
+    if (categoryId && !categoryGuessed) return;
+    const guess = hints.guessCategory(description, tab);
+    const valid = !!guess && categories.some(c => c.id === guess && c.type === tab);
+    if (valid && guess !== categoryId) {
+      setCategoryId(guess!);
+      setCategoryGuessed(true);
+    } else if (!valid && categoryGuessed) {
+      setCategoryId('');
+      setCategoryGuessed(false);
+    }
+  }, [isOpen, tab, description, categoryId, categoryGuessed, categories, hints.guessCategory]);
+
   const resetForm = () => {
     setAmount(''); setCategoryId(''); setWalletId('');
     setToWalletId(''); setDescription(''); setLinkedIncomeId('');
     setLinkTouched(false); setIncomeMonth(thisMonthLocal());
     setPlanId(''); setPlanItemId('');
+    setCategoryGuessed(false);
     setDate(todayLocal());
     setDetails([]); setShowDetails(false);
   };
@@ -194,38 +221,38 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                 </div>
 
                 {/* Wallet From */}
-                <QuickSelectWithAdd
+                <ChipSelect
                   label={tab === 'transfer' ? 'From Wallet' : 'Wallet'}
                   value={walletId}
                   options={wallets}
+                  order={hints.walletOrder}
                   onChange={setWalletId}
                   onAdd={async (name) => addWallet({ name, icon: 'Wallet', color: '#10b981', balance: 0 })}
-                  placeholder="Select wallet..."
-                  required
                 />
 
                 {/* To Wallet — only for Transfer */}
                 {tab === 'transfer' && (
-                  <QuickSelectWithAdd
+                  <ChipSelect
                     label="To Wallet"
                     value={toWalletId}
                     options={wallets.filter(w => w.id !== walletId)}
+                    order={hints.walletOrder}
                     onChange={setToWalletId}
                     onAdd={async (name) => addWallet({ name, icon: 'Wallet', color: '#3b82f6', balance: 0 })}
-                    placeholder="Select destination..."
-                    required
                   />
                 )}
 
                 {/* Category — only for Income/Expense */}
                 {tab !== 'transfer' && (
-                  <QuickSelectWithAdd
+                  <ChipSelect
                     label="Category"
                     value={categoryId}
                     options={tab === 'expense' ? expenseCategories : incomeCategories}
-                    onChange={setCategoryId}
+                    order={hints.categoryOrder}
+                    allowDeselect
+                    hint={categoryGuessed ? 'picked from description' : undefined}
+                    onChange={id => { setCategoryId(id); setCategoryGuessed(false); }}
                     onAdd={async (name) => addCategory({ name, icon: 'Tag', color: '#64748b', type: tab })}
-                    placeholder="Select category..."
                   />
                 )}
 
@@ -261,7 +288,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                       <option value="">Not linked</option>
                       {localIncomeSources.map(src => (
                         <option key={src.id} value={src.id}>
-                          {src.description || src.category} ({formatCurrency(src.amount)})
+                          {src.description || src.category || 'Income'}
                         </option>
                       ))}
                     </select>
@@ -274,7 +301,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     itemId={planItemId}
                     enabled={isOpen}
                     onChange={(p, i) => { setPlanId(p); setPlanItemId(i); }}
-                    onItemCategory={c => { if (!categoryId) setCategoryId(c); }}
+                    onItemCategory={c => { if (!categoryId || categoryGuessed) { setCategoryId(c); setCategoryGuessed(false); } }}
                   />
                 )}
               </div>
