@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { supabase } from '../lib/supabase';
 import { Wallet, TransactionCategory } from '../lib/types';
 import { useAuth } from './AuthContext';
+import { readMasterData, saveMasterData } from '../lib/queryPersist';
 
 interface WalletCategoryContextType {
   wallets: Wallet[];
@@ -31,7 +32,10 @@ export function WalletCategoryProvider({ children }: { children: React.ReactNode
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true });
-    if (data) setWallets(data as Wallet[]);
+    if (data) {
+      setWallets(data as Wallet[]);
+      saveMasterData(user.id, { wallets: data });
+    }
     setLoadingWallets(false);
   }, [user]);
 
@@ -43,7 +47,10 @@ export function WalletCategoryProvider({ children }: { children: React.ReactNode
       .select('*')
       .eq('user_id', user.id)
       .order('name', { ascending: true });
-    if (data) setCategories(data as TransactionCategory[]);
+    if (data) {
+      setCategories(data as TransactionCategory[]);
+      saveMasterData(user.id, { categories: data });
+    }
     setLoadingCategories(false);
   }, [user]);
 
@@ -75,8 +82,16 @@ export function WalletCategoryProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (user) {
+      // Show the copy saved in the browser at once (Dashboard donut names / colours),
+      // then refresh from Supabase
+      const saved = readMasterData(user.id);
+      if (saved?.wallets) setWallets(saved.wallets as Wallet[]);
+      if (saved?.categories) setCategories(saved.categories as TransactionCategory[]);
       refreshWallets();
       refreshCategories();
+    } else {
+      setWallets([]);
+      setCategories([]);
     }
   }, [user]);
 

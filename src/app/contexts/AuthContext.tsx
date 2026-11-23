@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../lib/types';
 import { queryClient } from '../lib/queryClient';
+import { clearPersistedCache } from '../lib/queryPersist';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +24,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Id of the user whose profile is loaded / loading. A ref, because the auth
+  // listener below is created once: reading the `profile` state there always
+  // saw null, so the profile was fetched again on every token refresh.
+  const profileFor = useRef<string | null>(null);
 
   useEffect(() => {
     // onAuthStateChange fires INITIAL_SESSION on subscribe — no need for getSession()
@@ -39,12 +44,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return session ?? null;
       });
 
-      if (newUser && (!profile || profile.id !== newUser.id)) {
-        fetchProfile(newUser.id);
+      if (newUser && profileFor.current !== newUser.id) {
+        profileFor.current = newUser.id;
+        // Supabase advice: no Supabase call inside this callback (it runs while
+        // the auth lock is held), so the request starts right after it
+        setTimeout(() => fetchProfile(newUser.id), 0);
       } else if (!newUser) {
+        profileFor.current = null;
         setProfile(null);
-        // Buang data akun sebelumnya dari cache saat logout / sesi habis
+        // Buang data akun sebelumnya dari cache (memori + browser) saat logout / sesi habis
         queryClient.clear();
+        clearPersistedCache();
       }
 
       setLoading(false);

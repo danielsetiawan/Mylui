@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { StickyNote, PlusCircle, Search, Trash2, X, Plus, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
@@ -7,12 +8,12 @@ import { Note } from '../lib/types';
 import { toast } from 'sonner';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { useMonthRange } from '../contexts/MonthRangeContext';
+import { queryKeys } from '../lib/queryClient';
 
 export function Notes() {
   const { user } = useAuth();
   const { monthOptions } = useMonthRange();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterMonthYear, setFilterMonthYear] = useState('');
@@ -20,10 +21,6 @@ export function Notes() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
 
-  // Pagination states
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const ITEMS_PER_PAGE = 10;
 
   const [title, setTitle] = useState('');
@@ -34,26 +31,19 @@ export function Notes() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  useEffect(() => {
-    if (user) {
-      setPage(0);
-      setNotes([]);
-      fetchNotes(0);
-    }
-  }, [user, debouncedSearchTerm, filterMonthYear]);
-
-  const fetchNotes = async (pageNum: number) => {
-    if (!user) return;
-    try {
-      if (pageNum === 0) setLoading(true);
-      else setIsFetchingMore(true);
-
+  // Notes list: cached per filter (and the default view kept in the browser,
+  // see lib/queryPersist.ts), ITEMS_PER_PAGE per page
+  const listQuery = useInfiniteQuery({
+    queryKey: queryKeys.noteList(user?.id, { month: filterMonthYear, search: debouncedSearchTerm }),
+    enabled: !!user,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
       let query = supabase
         .from('notes')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
-        .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1);
+        .range(pageParam, pageParam + ITEMS_PER_PAGE - 1);
 
       if (filterMonthYear) {
         const [year, month] = filterMonthYear.split('-').map(Number);
@@ -66,30 +56,19 @@ export function Notes() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
+      const rows = (data ?? []) as Note[];
+      return { rows, nextOffset: rows.length === ITEMS_PER_PAGE ? pageParam + ITEMS_PER_PAGE : undefined };
+    },
+    getNextPageParam: (last) => last.nextOffset,
+  });
 
-      const newNotes = data || [];
-      if (pageNum === 0) {
-        setNotes(newNotes);
-      } else {
-        setNotes(prev => [...prev, ...newNotes]);
-      }
-
-      setHasMore(newNotes.length === ITEMS_PER_PAGE);
-    } catch (error: any) {
-      console.error('Notes fetch error:', error);
-    } finally {
-      setLoading(false);
-      setIsFetchingMore(false);
-    }
-  };
-
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchNotes(nextPage);
-  };
+  const notes = useMemo(() => listQuery.data?.pages.flatMap(p => p.rows) ?? [], [listQuery.data]);
+  const loading = listQuery.isPending;
+  const hasMore = listQuery.hasNextPage;
+  const isFetchingMore = listQuery.isFetchingNextPage;
+  const handleLoadMore = () => listQuery.fetchNextPage();
+  const refreshNotes = () => queryClient.invalidateQueries({ queryKey: queryKeys.notes(user?.id) });
 
   const handleSaveNote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,8 +93,7 @@ export function Notes() {
       setSelectedNote(null);
       setTitle('');
       setContent('');
-      setPage(0);
-      fetchNotes(0);
+      refreshNotes();
     } catch (error: any) {
       toast.error('Error: ' + error.message);
     }
@@ -130,8 +108,7 @@ export function Notes() {
         .eq('id', noteToDelete.id);
       if (error) throw error;
       toast.success('Note deleted');
-      setPage(0);
-      fetchNotes(0);
+      refreshNotes();
     } catch (error: any) {
       toast.error('Error deleting note');
     } finally {

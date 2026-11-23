@@ -7,7 +7,7 @@
  * `groupRows` turns saved rows back into items for editing.
  *
  * `calculateSplit` is the split formula. It is a CONTRACT shared with the
- * mobile app (mylui_mobile/lib/pages/split_bill_form_page.dart): results must
+ * mobile app (mylui-mobile/lib/core/split_calc.dart): results must
  * stay identical. It was moved here unchanged from the old add.tsx / edit.tsx.
  */
 

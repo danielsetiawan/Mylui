@@ -163,13 +163,13 @@ Rincian item di dalam satu transaksi (mis. isi struk).
 
 | Kolom | Tipe (dugaan) | Keterangan |
 |---|---|---|
-| `id` | uuid PK | Web (sejak 2026-11-22) mempertahankan id item saat edit; **mobile masih menghapus semua item lalu insert ulang**, jadi id tetap bisa berubah jika plan diedit dari mobile |
+| `id` | uuid PK | Web dan mobile (keduanya sejak 2026-11-22) mempertahankan id item saat edit (update → insert → delete hanya yang berubah) |
 | `plan_id` | uuid FK → `budget_plans` | |
 | `name` | text | |
 | `estimate` | numeric | |
-| `category_id` | uuid FK → `transaction_categories.id`, nullable, `ON DELETE SET NULL` | **Ditambah 2026-11-22** (web saja). Ikon item di Planning, dan kategori default saat expense ditautkan ke item ini. Hilang jika plan diedit dari mobile (mobile menghapus & insert ulang item tanpa kolom ini) |
+| `category_id` | uuid FK → `transaction_categories.id`, nullable, `ON DELETE SET NULL` | **Ditambah 2026-11-22**. Ikon item di Planning, dan kategori default saat expense ditautkan ke item ini. Diisi oleh web dan mobile (form plan) |
 
-Nilai turunan (dihitung di klien, tidak disimpan): `planned = Σ estimate`, `unallocated = total_budget − planned`; sejak 2026-11-22 juga **realisasi**: `spent = Σ amount transaksi expense dengan budget_plan_id = plan.id`, per item `Σ … budget_plan_item_id = item.id`, `left = total_budget − spent` (web: `src/app/lib/planSpending.ts`). Mobile belum menampilkan maupun mengisi tautan ini.
+Nilai turunan (dihitung di klien, tidak disimpan): `planned = Σ estimate`, `unallocated = total_budget − planned`; sejak 2026-11-22 juga **realisasi**: `spent = Σ amount transaksi expense dengan budget_plan_id = plan.id`, per item `Σ … budget_plan_item_id = item.id`, `left = total_budget − spent` (web: `src/app/lib/planSpending.ts`). Mobile (sejak revamp 2026-11-22) **menampilkan** realisasi yang sama (`PlanningService.fetchPlanSpending`), tetapi form transaksi mobile **belum mengisi** `budget_plan_id` / `budget_plan_item_id`.
 
 **Migrasi**: kolom tautan dibuat oleh `supabase/migrations/20261122_plan_realization.sql` (dijalankan manual di SQL Editor Supabase; file berisi juga perintah undo). Kode web **membutuhkan** kolom ini: tanpa migrasi, daftar Activity dan form expense akan error.
 Hapus plan: klien hanya menghapus header; item diasumsikan cascade **[TIDAK DIKETAHUI]**.
@@ -200,33 +200,27 @@ Hapus plan: klien hanya menghapus header; item diasumsikan cascade **[TIDAK DIKE
 | `grand_total` | numeric | Sudah dibulatkan |
 | `created_at` | timestamptz | |
 
-`split_bill_details` — ⚠️ **web dan mobile menulis dengan format berbeda**
+`split_bill_details` — sejak revamp mobile (2026-11-22) **web dan mobile menulis format yang sama**: satu baris per (orang, bagian item).
 
-| Kolom | Web menulis | Mobile menulis |
-|---|---|---|
-| `id`, `split_bill_id` | ✓ | ✓ |
-| `person_name` | nama, kosong → `'Unknown'` | nama, kosong → `'Unassigned'` |
-| `item_name` | nama, kosong → `'Item'` | apa adanya (boleh kosong) |
-| `original_price` | **bagian orang itu dari total item** (harga × qty, dibagi rata jika item dipakai bersama; rupiah bulat) | **harga satuan** |
-| `qty` | — (tidak dikirim) | ✓ |
-| `weight_percentage` | ✓ (`ratio × 100`) | — |
-| `tax_amount`, `service_amount`, `discount_amount`, `delivery_amount`, `admin_amount` | ✓ (alokasi per item, pecahan) | — |
-| `final_price` | ✓ (dibulatkan) | ✓ (dibulatkan) |
+| Kolom | Isi |
+|---|---|
+| `id`, `split_bill_id` | |
+| `person_name` | nama orang; kosong → `'Unknown'` |
+| `item_name` | nama item; kosong → `'Item'` |
+| `original_price` | **bagian orang itu dari total item** (harga × qty, dibagi rata jika item dipakai bersama; rupiah bulat) |
+| `qty` | tidak dikirim lagi (baris lama dari mobile versi sebelum revamp masih punya `qty`) |
+| `weight_percentage` | `ratio × 100` |
+| `tax_amount`, `service_amount`, `discount_amount`, `delivery_amount`, `admin_amount` | alokasi per baris (pecahan) |
+| `final_price` | dibulatkan |
 
-Cara baca:
+Implementasi: web `src/app/pages/split-bill/calculate.ts` (`expandItems`, `groupRows`, `calculateSplit`), mobile `lib/core/split_calc.dart` (port 1:1, diuji dengan `test/split_calc_test.dart` dan perbandingan 2000 kasus acak terhadap versi TS). Kedua fungsi `calculateSplit` adalah **kontrak**: hasilnya harus identik.
 
-- Web (edit): `originalPrice = original_price`, `qty = 1` (mengabaikan kolom `qty`).
-- Mobile (edit): `price = original_price`, `qty = qty ?? 1`.
+Saat membuka bill untuk diedit, kedua klien memakai `groupRows`: baris dengan nama item sama dan harga hampir sama (selisih ≤ 1 rupiah) untuk orang berbeda digabung kembali jadi satu item bersama. Data lama:
 
-Konsekuensi lintas platform:
+- Baris mobile lama (`original_price` = harga satuan, `qty` > 1): mobile baru membacanya sebagai `original_price × qty`; **web masih membaca qty = 1**, jadi bill lama dari mobile dengan qty > 1 tampil lebih kecil di web sampai bill itu disimpan ulang dari mobile.
+- `person_name` `'Unassigned'` (mobile lama) atau `'Unknown'` dianggap tidak ada orangnya.
 
-| Dibuat di | Dibuka di | Hasil |
-|---|---|---|
-| Web, qty > 1 | Mobile | Benar hanya jika kolom `qty` bernilai null/1 untuk baris tersebut (harga total diperlakukan sebagai 1 unit) |
-| Mobile, qty > 1 | Web | **Salah** — web menghitung subtotal dengan harga satuan × 1 |
-| Mobile | Web (kolom alokasi) | `tax_amount` dst. kosong/null |
-
-Keberadaan & default kolom `qty` di DB **[TIDAK DIKETAHUI]** (mobile mengirimnya, jadi diasumsikan ada). Kolom alokasi (`tax_amount`, dst.) ditulis web tetapi **tidak pernah dibaca** oleh klien mana pun (selalu dihitung ulang).
+Kolom alokasi (`tax_amount`, dst.) tidak pernah dibaca oleh klien mana pun (selalu dihitung ulang). Keberadaan & default kolom `qty` di DB **[TIDAK DIKETAHUI]**.
 
 Rumus perhitungan: lihat [WEB.md §7.6](WEB.md).
 
@@ -302,7 +296,7 @@ Daftar ini tidak bisa dijawab dari kode. Jawab dulu sebelum refactor data:
 2. Aturan `ON DELETE` setiap FK (detail transaksi, item plan, detail split bill, `wallet_id`, `category_id`, `linked_income_id`).
 3. Policy RLS tiap tabel, termasuk pengecualian untuk admin.
 4. Trigger/function: pembuatan `profiles` saat signup; ada/tidaknya pengelolaan `wallets.balance`.
-5. Index pada `transactions (user_id, date)` dan kolom pencarian.
+5. ~~Index~~ — **sudah diperiksa 2026-11-23** (lihat §7.1). Yang tersisa: index untuk kolom pencarian (`ilike '%…%'` butuh `pg_trgm`, belum perlu di ukuran data sekarang).
 6. Apakah Edge Function `server` dan tabel `kv_store_c093f2ae` benar-benar ter-deploy.
 7. Pengaturan Auth: konfirmasi email, JWT/refresh expiry, daftar redirect URL, provider Google.
 
@@ -313,6 +307,12 @@ supabase db dump --schema public -f supabase/schema.sql
 ```
 
 Setelah file itu ada, perbarui dokumen ini dan hapus label [TIDAK DIKETAHUI] yang sudah terjawab.
+
+### 7.1 Hasil diagnosis 2026-11-23 (`supabase/diagnostics/2026-11-23_query_performance_check.sql`)
+
+- **Ukuran data**: `transactions` ±2.300 baris (736 kB), `transaction_details` ±850, tabel lain < 100 baris. Database bukan penyebab lambat untuk ukuran ini: query Notes tercatat 0,03 ms di server.
+- **RLS aktif di semua tabel** (termasuk `kv_store_c093f2ae`); akses dengan anon key tanpa login mengembalikan 0 baris di setiap tabel. Isi policy (`pg_policies`) **belum diperiksa**: perlu dilihat apakah memakai `auth.uid()` langsung (dihitung per baris) atau `(select auth.uid())`, dan apakah policy tabel anak (`transaction_details`, `budget_plan_items`, `split_bill_details`) melakukan subquery ke tabel induk.
+- **Index**: sebelum migrasi `20261123_query_indexes.sql` hanya `split_bill_details(split_bill_id)` dan index partial `budget_plan_id` / `budget_plan_item_id` (migrasi 2026-11-22) yang ada; semua kolom `user_id` dan FK lain tanpa index. `transaction_details` tercatat 548.308 seq scan vs 224 index scan (embed detail di list Activity). Migrasi tersebut menambah index untuk `transactions (user_id, date desc, created_at desc)`, FK `linked_income_id`/`wallet_id`/`to_wallet_id`/`category_id`, `transaction_details(transaction_id)`, `user_id` di master data, dan `(user_id, created_at desc)` untuk notes, budget_plans, split_bills, plus `budget_plan_items(plan_id)`. Status dijalankan: lihat riwayat SQL Editor.
 
 ## 8. Aturan Saat Mengubah Skema
 

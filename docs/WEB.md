@@ -60,6 +60,7 @@ Tooling yang **tidak ada**: `tsconfig.json`, package `typescript`, ESLint, Prett
 │       ├── lib/
 │       │   ├── supabase.ts    ← satu-satunya instance Supabase client
 │       │   ├── queryClient.ts ← QueryClient, daftar query key, helper fetchAllRows
+│       │   ├── queryPersist.ts ← salinan cache di localStorage (apa yang disimpan, 24 jam, logout)
 │       │   └── types.ts       ← tipe domain (Transaction, Wallet, dst.)
 │       ├── contexts/          ← state global (lihat §6)
 │       ├── layouts/Layout.tsx ← shell aplikasi (sidebar desktop + bottom nav mobile)
@@ -97,7 +98,7 @@ Browser
 Karakteristik penting:
 
 - **Tidak ada layer data access.** Setiap halaman menulis query `supabase.from(...)` sendiri di dalam komponen.
-- **Cache data hanya di Dashboard, Activity, dan Planning** lewat TanStack Query (`src/app/lib/queryClient.ts`). Halaman lain (Planning, Notes, Split Bill, Master Data, Init) masih mengambil data dengan `useEffect` setiap kali dibuka. Lihat "Cache data" di bawah.
+- **Cache data di Dashboard, Activity, Planning dan Notes** lewat TanStack Query (`src/app/lib/queryClient.ts`), dan tampilan default-nya disimpan di browser (`src/app/lib/queryPersist.ts`). Halaman lain (Split Bill, Master Data, Init) masih mengambil data dengan `useEffect` setiap kali dibuka. Lihat "Cache data" di bawah.
 - **Tidak ada state management library** untuk state klien. Hanya `useState` + 4 React Context.
 - **Semua form "add/edit" adalah komponen yang dirender oleh halaman index**, bukan route tersendiri. File `pages/*/add.tsx`, `edit.tsx`, `detail.tsx` **bukan route**.
 - **Keamanan data bergantung sepenuhnya pada RLS Supabase.** Klien selalu menambahkan `.eq('user_id', user.id)` pada SELECT, tapi UPDATE/DELETE hanya memfilter `id`. Isi policy RLS **[TIDAK DIKETAHUI]** — tidak ada file SQL/migration di repo.
@@ -106,7 +107,7 @@ Karakteristik penting:
 ### Urutan Provider (`src/app/App.tsx`)
 
 ```
-QueryClientProvider             (cache TanStack Query)
+PersistQueryClientProvider      (cache TanStack Query + salinan di localStorage, lib/queryPersist.ts)
   └─ AuthProvider
        └─ MonthRangeProvider        (butuh useAuth)
             └─ WalletCategoryProvider (butuh useAuth)
@@ -119,11 +120,13 @@ Urutan ini wajib dipertahankan: `MonthRangeProvider` dan `WalletCategoryProvider
 
 ### Cache data (`src/app/lib/queryClient.ts`)
 
-- `staleTime: 0`, `gcTime` 30 menit, `retry: 1`. Artinya: saat halaman dibuka lagi, data cache **langsung tampil**, lalu diambil ulang di belakang layar. Data juga diambil ulang saat tab browser kembali difokuskan (perilaku default TanStack Query).
+- `staleTime: 30 dtk`, `gcTime` 24 jam, `retry: 1`. Data cache **langsung tampil** saat halaman dibuka lagi; bila umurnya > 30 dtk diambil ulang di belakang layar (juga saat tab browser kembali fokus). Sebelum 2026-11-23 `staleTime` 0, sehingga setiap fokus tab menjalankan ulang semua query (terlihat sebagai request ganda di Network).
+- **Salinan di browser** (`lib/queryPersist.ts`, sejak 2026-11-23): `PersistQueryClientProvider` menyimpan ke `localStorage` key `mylui-query-cache` hanya tampilan default yang perlu tampil cepat — 3 query Dashboard, halaman pertama Activity / Planning / Notes tanpa pencarian, statistik Activity, income bulan (`shouldPersistQuery`); list infinite dipotong ke halaman pertama. Berlaku 24 jam (`MAX_AGE`), dibuang bila `CACHE_VERSION` berubah (**naikkan saat bentuk data query yang disimpan berubah**), dan dihapus saat logout (`clearPersistedCache` di `AuthContext`). Ditulis paling sering sekali per detik. Ukuran terukur ±60 KB. Tujuannya: request pertama ke Supabase setelah server diam bisa beberapa detik (terukur 3,86 dtk "Waiting" di sisi server), jadi halaman menampilkan data terakhir dulu lalu memperbaruinya.
+- Wallet & kategori (`WalletCategoryContext`, bukan TanStack Query) juga disimpan dengan aturan sama di key `mylui-master-data` (dipakai nama/warna donut Dashboard).
 - **Semua query key dari tabel `transactions` diawali `['transactions', userId]`** (lihat `queryKeys`). Setelah tambah/ubah/hapus transaksi, halaman Activity memanggil `invalidateQueries({ queryKey: queryKeys.transactions(userId) })` sehingga daftar, statistik, dan Dashboard ikut diperbarui. Kode baru yang menulis ke `transactions` sebaiknya melakukan hal yang sama.
-- Halaman lain yang menulis ke `transactions` (`Init.tsx`) **tidak** meng-invalidate; data baru muncul karena `staleTime: 0` memicu pengambilan ulang saat halaman dibuka.
+- Halaman lain yang menulis ke `transactions` (`Init.tsx`) **tidak** meng-invalidate; data baru muncul paling lambat 30 dtk kemudian saat halaman dibuka lagi.
 - `fetchAllRows(build)` mengambil semua baris sebuah query per 1000 baris (batas default PostgREST), dipakai untuk penjumlahan di klien.
-- Cache dikosongkan (`queryClient.clear()`) saat sesi berakhir, di `AuthContext`.
+- Cache dikosongkan (`queryClient.clear()` + `clearPersistedCache()`) saat sesi berakhir, di `AuthContext`.
 - Skeleton (`animate-pulse`) hanya tampil saat belum ada data sama sekali (`isPending`), bukan saat pengambilan ulang.
 
 ## 5. Routing (`src/app/routes.tsx`)
@@ -176,7 +179,7 @@ Hook: `useAuth()` (throw jika di luar provider).
 | `signOut()` | | |
 | `refreshProfile()` | | Fetch ulang `profiles` |
 
-Cara kerja: hanya berlangganan `supabase.auth.onAuthStateChange` (tidak memanggil `getSession()`; mengandalkan event `INITIAL_SESSION`). `setUser`/`setSession` hanya mengganti referensi jika `id`/`access_token` berubah, supaya context lain yang bergantung pada `user` tidak re-fetch saat token refresh.
+Cara kerja: hanya berlangganan `supabase.auth.onAuthStateChange` (tidak memanggil `getSession()`; mengandalkan event `INITIAL_SESSION`). `setUser`/`setSession` hanya mengganti referensi jika `id`/`access_token` berubah, supaya context lain yang bergantung pada `user` tidak re-fetch saat token refresh. Profil diambil sekali per user (`profileFor` ref; dulu terambil ulang di setiap event karena state `profile` di closure selalu null) dan lewat `setTimeout(0)`, karena Supabase menyarankan tidak memanggil Supabase di dalam callback auth.
 
 Baris `profiles` **tidak dibuat oleh klien**. Kode hanya SELECT dan UPDATE `full_name`. Pembuatan baris (kemungkinan trigger DB pada `auth.users`) **[TIDAK DIKETAHUI]**.
 
@@ -218,6 +221,8 @@ Hook: `useVisibility()` → `{ amountsVisible, toggleAmounts, maskAmount(formatt
 |---|---|---|
 | `theme` | `'dark'` \| `'light'` | `Layout.tsx` |
 | `amountsVisible` | `'true'` \| `'false'` | `VisibilityContext` |
+| `mylui-query-cache` | salinan query default (JSON, ±60 KB, 24 jam) | `lib/queryPersist.ts` (TanStack persister) |
+| `mylui-master-data` | wallet & kategori user terakhir (24 jam) | `WalletCategoryContext` |
 | `sb-<project>-auth-token` | sesi Supabase | supabase-js |
 
 Tema: class `dark` di `<html>`; default mengikuti `prefers-color-scheme` jika `theme` belum tersimpan. Tema diterapkan oleh skrip inline di `index.html` **sebelum React render**, jadi berlaku di semua halaman termasuk `/login` dan tanpa kedipan. `Layout.tsx` membaca aturan yang sama untuk state tombol toggle; jika aturan diubah, ubah keduanya.
@@ -319,7 +324,7 @@ File: `index.tsx` (grid kartu), `add.tsx` (`PlanningAdd` modal, juga untuk Dupli
 - Status: `'planning' | 'active' | 'completed'`. Plan baru selalu `'planning'`. Status diubah dari modal detail (langsung UPDATE).
 - `total_budget`: jika user mengisi "Total Budget Plan" > 0 pakai nilai itu; jika kosong/0 → jumlah `estimate` semua item.
 - Kalkulasi tampilan (label UI sejak 2026-11-22): **Planned** = `Σ item.estimate`; **Unallocated** = `total_budget − Planned` (label berubah jadi **Over budget**, merah, jika negatif); progress = `Planned / total_budget` (di-clamp 100% pada kartu). Dulu berlabel "Used"/"Remaining", yang menyesatkan karena ini estimasi, bukan pengeluaran nyata.
-- Edit (web): UPDATE header → UPDATE hanya item yang berubah → INSERT item baru → DELETE item yang dihapus. Id item yang tidak dihapus **tetap stabil**; jika gagal di tengah, sisa yang mungkin terjadi adalah item berlebih, bukan item hilang. (Mobile masih delete-all-then-insert.)
+- Edit (web): UPDATE header → UPDATE hanya item yang berubah → INSERT item baru → DELETE item yang dihapus. Id item yang tidak dihapus **tetap stabil**; jika gagal di tengah, sisa yang mungkin terjadi adalah item berlebih, bukan item hilang. (Mobile sejak 2026-11-22 memakai cara yang sama: `PlanningService.syncItems`.)
 - Duplicate: tombol di modal detail membuka form tambah terisi judul "… (copy)", deskripsi, dan item (tanpa id). Budget disalin hanya jika berbeda dari total item (artinya diketik manual); jika sama, dibiarkan kosong agar tetap otomatis. Plan baru selalu berstatus `planning`.
 - List: TanStack `useInfiniteQuery`, key `queryKeys.planList` (semua key plan diawali `['budget_plans', userId]`, di-invalidate setelah tambah/edit/hapus/ubah status — termasuk preview Dashboard). 10 per halaman (meminta 11 baris untuk tahu ada halaman berikutnya), tombol "Load More Plans", filter bulan terhadap `created_at`, pencarian `title`/`description` (ILIKE, debounce 500 ms; teks highlight di-escape). Skeleton saat pertama dimuat. Semua nominal di kartu & detail melewati `maskAmount`.
 - **Realisasi (sejak 2026-11-22)**: expense bisa ditautkan ke plan (dan item) dari form Activity. Kartu plan menampilkan **Budget / Spent / Left** (progress bar = Spent ÷ Budget, merah jika lewat) plus baris "N items · Rp X planned · M expenses". Modal detail: ringkasan Budget/Spent/Left; daftar **Spending (n)** berisi expense yang tertaut (deskripsi, tanggal, nominal; maks. 100) — ini rincian utama, sehingga plan **tidak perlu item** sama sekali. Hanya jika plan punya item: baris Planned/Unallocated, bagian Budget Details (tiap item "spent of estimate" dengan bar) dan baris "Other spending" untuk expense yang tidak dikaitkan ke item. Data: `usePlanSpending` (semua expense bertautan, satu query) dan `usePlanTransactions(planId)` di `lib/planSpending.ts`; keduanya ber-key `['transactions', userId, …]` sehingga ikut diperbarui setelah transaksi disimpan/dihapus.
@@ -330,6 +335,7 @@ File: `index.tsx` (grid kartu), `add.tsx` (`PlanningAdd` modal, juga untuk Dupli
 
 - CRUD sederhana tabel `notes` (`title`, `content`). Satu modal untuk create & edit (`selectedNote` null = create).
 - 10 per halaman + "Load More", filter bulan terhadap `created_at`, pencarian `title`/`content`.
+- Data: TanStack `useInfiniteQuery`, key `queryKeys.noteList` (semua diawali `['notes', userId]`, di-invalidate setelah simpan/hapus). Sebelum 2026-11-23 memakai `useState` + `useEffect`.
 
 ### 7.6 Split Bill — `pages/split-bill/`
 
@@ -513,7 +519,7 @@ Daftar ini adalah perilaku **aktual** kode saat ini. Saat refactor, putuskan sec
 - File besar bercampur logika + JSX (transactions/index, split-bill/SplitBillForm).
 - Duplikasi tinggi (§8).
 - Agregasi (sum) dilakukan di klien dengan menarik semua baris `amount` (sudah digabung jadi satu query per halaman; idealnya fungsi Postgres/RPC).
-- Cache TanStack Query dipakai di Dashboard, Activity, dan Planning; Notes, Split Bill, Master Data, Init belum.
+- Cache TanStack Query dipakai di Dashboard, Activity, Planning dan Notes; Split Bill, Master Data, Init belum.
 - Chunk utama masih ±650 kB (React, Supabase, Motion, Router); Recharts sudah terpisah di chunk Dashboard.
 - `package.json`: `name` masih `@figma/my-make-file`; `react`/`react-dom` berada di `peerDependencies` (optional), bukan `dependencies`.
 

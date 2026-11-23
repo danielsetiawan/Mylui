@@ -3,15 +3,18 @@ import { QueryClient } from '@tanstack/react-query';
 /**
  * Cache data server (TanStack Query).
  *
- * staleTime 0: data di cache langsung ditampilkan saat halaman dibuka lagi,
- * lalu diperbarui di belakang layar. Jadi halaman tidak pernah mulai dari
- * kosong, tetapi juga tidak pernah menampilkan data lama terlalu lama.
+ * - Data di cache langsung ditampilkan saat halaman dibuka lagi, lalu diperbarui
+ *   di belakang layar bila sudah lebih dari 30 dtk (staleTime). Dulu 0, sehingga
+ *   setiap kali tab browser kembali fokus SEMUA query dijalankan ulang (terlihat
+ *   sebagai request ganda di Network).
+ * - gcTime 24 jam: harus >= MAX_AGE di lib/queryPersist.ts, supaya data yang
+ *   disimpan di browser tidak dibuang sebelum dipakai lagi.
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0,
-      gcTime: 30 * 60 * 1000,
+      staleTime: 30 * 1000,
+      gcTime: 24 * 60 * 60 * 1000,
       retry: 1,
     },
   },
@@ -39,6 +42,9 @@ export const queryKeys = {
   plans: (userId?: string) => ['budget_plans', userId] as const,
   planList: (userId: string | undefined, filters: Record<string, string>) =>
     ['budget_plans', userId, 'list', filters] as const,
+  notes: (userId?: string) => ['notes', userId] as const,
+  noteList: (userId: string | undefined, filters: Record<string, string>) =>
+    ['notes', userId, 'list', filters] as const,
 };
 
 // PostgREST membatasi jumlah baris per request (default Supabase: 1000).
