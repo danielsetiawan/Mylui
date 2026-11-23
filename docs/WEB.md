@@ -81,7 +81,7 @@ Tooling yang **tidak ada**: `tsconfig.json`, package `typescript`, ESLint, Prett
 
 ### Dependency yang benar-benar dipakai kode aplikasi
 
-`react`, `react-dom`, `react-router`, `@supabase/supabase-js`, `@tanstack/react-query` (cache data, Dashboard & Activity), `lucide-react` (ikon), `motion` (animasi, import dari `motion/react`), `sonner` (toast), `recharts` (hanya di Dashboard).
+`react`, `react-dom`, `react-router`, `@supabase/supabase-js` (≥ 2.119: auth tanpa Navigator LockManager secara default — versi 2.100 memunculkan error console "Acquiring an exclusive Navigator LockManager lock … immediately failed" saat tab kembali aktif / banyak tab; jangan pasang opsi `auth.lock` tanpa alasan), `@tanstack/react-query` (cache data, Dashboard, Activity, Planning, Notes) + `@tanstack/react-query-persist-client` / `@tanstack/query-sync-storage-persister` (salinan di browser), `lucide-react` (ikon), `motion` (animasi, import dari `motion/react`), `sonner` (toast), `recharts` (hanya di Dashboard).
 
 Semua dependency lain di `package.json` (MUI, Emotion, seluruh `@radix-ui/*`, `react-dnd`, `react-slick`, `react-hook-form`, `date-fns`, `cmdk`, `vaul`, `canvas-confetti`, `next-themes`, dll.) hanya direferensikan oleh `components/ui/*` yang tidak dipakai, atau tidak direferensikan sama sekali. Aman dihapus bersama folder `components/ui` setelah diverifikasi dengan build.
 
