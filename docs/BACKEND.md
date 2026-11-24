@@ -105,8 +105,9 @@ Notasi kolom "Sumber": **W** = dipakai web, **M** = dipakai mobile. Tipe adalah 
 | `category_id` | uuid FK → `transaction_categories`, nullable | W M | `null` untuk transfer |
 | `linked_income_id` | uuid FK → `transactions.id`, nullable | W M | Hanya untuk `type = 'expense'`: menautkan pengeluaran ke sumber pemasukan |
 | `budget_plan_id` | uuid FK → `budget_plans.id`, nullable, `ON DELETE SET NULL` | W | **Ditambah 2026-11-22** (`supabase/migrations/20261122_plan_realization.sql`). Hanya untuk expense: pengeluaran ini bagian dari plan mana. Dijumlahkan sebagai "Spent" di Planning |
-| `budget_plan_item_id` | uuid FK → `budget_plan_items.id`, nullable, `ON DELETE SET NULL` | W | **Ditambah 2026-11-22**. Opsional, hanya jika `budget_plan_id` terisi: item plan yang dibayar. Mobile tidak mengirim kolom ini sehingga edit dari mobile tidak menghapus tautan |
+| `budget_plan_item_id` | uuid FK → `budget_plan_items.id`, nullable, `ON DELETE SET NULL` | W | **Ditambah 2026-11-22**. Opsional, hanya jika `budget_plan_id` terisi: item plan yang dibayar. Mobile mengisi kedua kolom di form tambah (sejak 2026-11-24) dan edit (sejak 2026-11-25) expense |
 | `created_at` | timestamptz | W M | Urutan sekunder list |
+| `sort_order` | double precision, not null, default `extract(epoch from now())` | W M | **Ditambah 2026-11-24** (`supabase/migrations/20261124_transaction_sort_order.sql`). Urutan manual di dalam satu tanggal (lebih besar = lebih atas). Baris lama diisi dari `created_at`. Daftar Activity diurutkan `date desc, sort_order desc, created_at desc`; drag & drop menulis **satu baris** (nilai di antara dua tetangga barunya), atau menomori ulang satu hari bila tetangganya bernilai sama (baris hasil impor). Hanya daftar Activity yang memakainya; Dashboard dan query lain tetap `created_at`. Aplikasi yang tidak mengirim kolom ini (APK lama) tetap jalan berkat default |
 
 Relasi yang dipakai di embed PostgREST (nama FK harus tetap bisa di-resolve):
 
@@ -169,7 +170,7 @@ Rincian item di dalam satu transaksi (mis. isi struk).
 | `estimate` | numeric | |
 | `category_id` | uuid FK → `transaction_categories.id`, nullable, `ON DELETE SET NULL` | **Ditambah 2026-11-22**. Ikon item di Planning, dan kategori default saat expense ditautkan ke item ini. Diisi oleh web dan mobile (form plan) |
 
-Nilai turunan (dihitung di klien, tidak disimpan): `planned = Σ estimate`, `unallocated = total_budget − planned`; sejak 2026-11-22 juga **realisasi**: `spent = Σ amount transaksi expense dengan budget_plan_id = plan.id`, per item `Σ … budget_plan_item_id = item.id`, `left = total_budget − spent` (web: `src/app/lib/planSpending.ts`). Mobile (sejak revamp 2026-11-22) **menampilkan** realisasi yang sama (`PlanningService.fetchPlanSpending`), tetapi form transaksi mobile **belum mengisi** `budget_plan_id` / `budget_plan_item_id`.
+Nilai turunan (dihitung di klien, tidak disimpan): `planned = Σ estimate`, `unallocated = total_budget − planned`; sejak 2026-11-22 juga **realisasi**: `spent = Σ amount transaksi expense dengan budget_plan_id = plan.id`, per item `Σ … budget_plan_item_id = item.id`, `left = total_budget − spent` (web: `src/app/lib/planSpending.ts`). Mobile (sejak revamp 2026-11-22) **menampilkan** realisasi yang sama (`PlanningService.fetchPlanSpending`), dan form tambah / edit expense mobile mengisi `budget_plan_id` / `budget_plan_item_id` (field "Plan").
 
 **Migrasi**: kolom tautan dibuat oleh `supabase/migrations/20261122_plan_realization.sql` (dijalankan manual di SQL Editor Supabase; file berisi juga perintah undo). Kode web **membutuhkan** kolom ini: tanpa migrasi, daftar Activity dan form expense akan error.
 Hapus plan: klien hanya menghapus header; item diasumsikan cascade **[TIDAK DIKETAHUI]**.

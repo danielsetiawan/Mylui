@@ -120,7 +120,7 @@ export function ChipSelect({
                 if (e.key === 'Escape') { setIsAdding(false); setNewName(''); }
               }}
               aria-label={`New ${label.toLowerCase()} name`}
-              className="w-32 bg-accent/50 border border-primary/30 rounded-xl py-1.5 px-2.5 text-xs font-bold outline-none focus:ring-2 ring-primary/20"
+              className="w-32 bg-field border border-primary/30 rounded-xl py-1.5 px-2.5 text-xs font-bold outline-none focus:ring-2 ring-primary/20"
             />
             <button type="button" onClick={handleSave} disabled={saving || !newName.trim()} aria-label="Save"
               className="p-1.5 bg-primary text-primary-foreground rounded-lg disabled:opacity-50">

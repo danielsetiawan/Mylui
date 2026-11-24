@@ -172,7 +172,7 @@ export function CategoriesPage() {
                     <input
                       type="text" autoFocus value={editName} onChange={e => setEditName(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleUpdate(cat.id); if (e.key === 'Escape') setEditingId(null); }}
-                      className="flex-1 bg-accent/50 border-none rounded-xl py-2 px-3 font-bold outline-none focus:ring-2 ring-primary/20 text-sm"
+                      className="flex-1 bg-field border-none rounded-xl py-2 px-3 font-bold outline-none focus:ring-2 ring-primary/20 text-sm"
                     />
                     {/* Color picker */}
                     <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export function CategoriesPage() {
                 type="text" autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setIsAdding(false); }}
                 placeholder="Category name (e.g. Food, Transport...)"
-                className="w-full bg-accent/50 border-none rounded-xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                className="w-full bg-field border-none rounded-xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
               />
               {/* Color picker */}
               <div className="flex flex-col gap-2">

@@ -7,10 +7,10 @@ import {
   Globe, Baby, Dog, Smartphone, Monitor, Shirt, Scissors, Star,
   Cookie, IceCream2, Pizza, Sandwich, Soup, MapPin, Map as MapIcon, Compass, Mountain,
   Truck, Fuel, Wrench, Banknote, ShoppingBasket, Package, Trees, Umbrella, Flame, Tent,
-  Repeat, Coins, Receipt, Landmark
+  Repeat, Coins, Receipt, Landmark, ArrowUpDown, GripVertical
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { getCategoryIcon } from '../../lib/categoryIcons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,6 +22,7 @@ import { TransactionEdit } from './edit';
 import { useMonthRange } from '../../contexts/MonthRangeContext';
 import { useVisibility } from '../../contexts/VisibilityContext';
 import { fetchAllRows, queryKeys } from '../../lib/queryClient';
+import { planReorder } from '../../lib/reorder';
 
 const PAGE_SIZE = 30;
 
@@ -116,10 +117,11 @@ export function Transactions() {
   const statsLoading = statsQuery.isPending;
 
   // ── Transaction list: cached per filter combination, PAGE_SIZE rows per page ──
+  const listKey = queryKeys.transactionList(user?.id, {
+    type: filterType, month: filterMonthYear, incomeId: filterIncomeId, search: debouncedSearchTerm,
+  });
   const listQuery = useInfiniteQuery({
-    queryKey: queryKeys.transactionList(user?.id, {
-      type: filterType, month: filterMonthYear, incomeId: filterIncomeId, search: debouncedSearchTerm,
-    }),
+    queryKey: listKey,
     enabled: !!user,
     initialPageParam: 0,
     placeholderData: keepPreviousData, // keep the old list visible while a new filter loads
@@ -129,6 +131,7 @@ export function Transactions() {
         .select(TRANSACTION_SELECT)
         .eq('user_id', user!.id)
         .order('date', { ascending: false })
+        .order('sort_order', { ascending: false }) // manual order inside a day (drag & drop)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         // Ask for one row more than a page: its presence tells us there is a next
@@ -187,8 +190,57 @@ export function Transactions() {
           : t);
       }
     }
+    // Already the server's order; applied again so a row that was just dragged
+    // (new sort_order written into the cache) moves at once. Ties keep their place.
+    result.sort((a, b) => b.date.localeCompare(a.date) || (b.sort_order ?? 0) - (a.sort_order ?? 0));
     return result;
   }, [listQuery.data, monthIncomes]);
+
+  // ── Reorder: drag a row to another place inside its day ──
+  // Only on the plain list: with a search or filter the rows between two
+  // neighbours are hidden, so "between them" would be the wrong place.
+  const [reorderMode, setReorderMode] = useState(false);
+  const canReorder = filterType === 'all' && filterIncomeId === 'all' && !debouncedSearchTerm;
+  const reordering = reorderMode && canReorder;
+  // The day being dragged, in its order on screen right now
+  const [dragDay, setDragDay] = useState<{ date: string, rows: Transaction[] } | null>(null);
+  const dragDayRef = useRef(dragDay);
+
+  const handleDragOrder = (date: string, rows: Transaction[]) => {
+    dragDayRef.current = { date, rows };
+    setDragDay(dragDayRef.current);
+  };
+
+  const handleDrop = async (movedId: string) => {
+    const day = dragDayRef.current;
+    if (!day) return;
+    const changes = planReorder(day.rows.map(t => ({ id: t.id, sort_order: t.sort_order ?? 0 })), movedId);
+    const ids = Object.keys(changes);
+    if (ids.length > 0) {
+      queryClient.setQueryData<InfiniteData<{ rows: Transaction[], nextOffset?: number }>>(listKey, old => old && {
+        ...old,
+        pages: old.pages.map(page => ({
+          ...page,
+          rows: page.rows.map(r => (r.id in changes ? { ...r, sort_order: changes[r.id] } : r)),
+        })),
+      });
+    }
+    dragDayRef.current = null;
+    setDragDay(null);
+    if (ids.length === 0) return;
+
+    const results = await Promise.all(
+      ids.map(id => supabase.from('transactions').update({ sort_order: changes[id] }).eq('id', id)),
+    );
+    if (results.some(r => r.error)) {
+      console.error('Error saving order:', results.find(r => r.error)?.error);
+      toast.error('Could not save the new order');
+      refreshTransactions();
+    } else {
+      // Other cached lists (other months / filters) hold the old order: reload them when opened
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactionLists(user?.id), refetchType: 'none' });
+    }
+  };
 
   // Everything derived from the transactions table (this page and the Dashboard)
   const refreshTransactions = () =>
@@ -517,13 +569,33 @@ export function Transactions() {
           <div className="p-12 text-center text-muted-foreground bg-card border border-border rounded-3xl">No transactions found.</div>
         ) : (
           <div className={`space-y-8 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
-            {groupedList.map((monthGroup) => (
+            {groupedList.map((monthGroup, monthIndex) => (
               <div key={monthGroup.month} className="space-y-6">
                 {/* Month Header */}
                 <div className="flex items-center gap-4">
                   <h2 className="text-xl font-black shrink-0">{monthGroup.month}</h2>
                   <div className="flex-1 h-px bg-border"></div>
+                  {monthIndex === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setReorderMode(v => !v)}
+                      disabled={!canReorder}
+                      aria-pressed={reordering}
+                      aria-label="Change the order"
+                      title={canReorder ? 'Change the order inside a day' : 'Clear the search and filters to change the order'}
+                      className={`p-2 rounded-xl border transition-colors shrink-0 disabled:opacity-40 ${reordering
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card border-border text-muted-foreground hover:bg-accent hover:text-foreground disabled:hover:bg-card'}`}
+                    >
+                      <ArrowUpDown size={16} />
+                    </button>
+                  )}
                 </div>
+                {monthIndex === 0 && reordering && (
+                  <p className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                    <GripVertical size={14} /> Drag a row by its handle to change the order inside a day.
+                  </p>
+                )}
 
                 {/* Days */}
                 <div className="space-y-6">
@@ -533,8 +605,9 @@ export function Transactions() {
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{dayGroup.label}</h3>
 
                       {/* Transactions Box */}
-                      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden divide-y divide-border">
-                        {dayGroup.transactions.map((transaction) => (
+                      {(() => {
+                        const boxClass = 'bg-card border border-border rounded-2xl shadow-sm overflow-hidden divide-y divide-border';
+                        const item = (transaction: Transaction) => (
                           <TransactionItem
                             key={transaction.id}
                             transaction={transaction}
@@ -544,8 +617,23 @@ export function Transactions() {
                             formatCompactCurrency={formatCompactCurrency}
                             searchTerm={debouncedSearchTerm}
                           />
-                        ))}
-                      </div>
+                        );
+                        // The last loaded day may continue on the next page: not until it is loaded
+                        const partial = hasNextPage && dayGroup.date === transactions[transactions.length - 1]?.date;
+                        if (!reordering || dayGroup.transactions.length < 2 || partial) {
+                          return <div className={boxClass}>{dayGroup.transactions.map(item)}</div>;
+                        }
+                        const rows = dragDay?.date === dayGroup.date ? dragDay.rows : dayGroup.transactions;
+                        return (
+                          <Reorder.Group as="div" axis="y" values={rows} onReorder={r => handleDragOrder(dayGroup.date, r)} className={boxClass}>
+                            {rows.map(transaction => (
+                              <ReorderRow key={transaction.id} transaction={transaction} onDrop={() => handleDrop(transaction.id)}>
+                                {item(transaction)}
+                              </ReorderRow>
+                            ))}
+                          </Reorder.Group>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -601,6 +689,31 @@ function HighlightMatch({ text, match }: { text: string, match: string }) {
           : part
       )}
     </>
+  );
+}
+
+/** A row of a day in reorder mode: the normal row plus a handle to drag it by. */
+function ReorderRow({ transaction, onDrop, children }: { transaction: Transaction, onDrop: () => void, children: React.ReactNode }) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      as="div"
+      value={transaction}
+      dragListener={false}
+      dragControls={controls}
+      onDragEnd={onDrop}
+      className="relative flex items-stretch bg-card"
+    >
+      <button
+        type="button"
+        aria-label="Drag to change the order"
+        onPointerDown={e => controls.start(e)}
+        className="pl-3 sm:pl-4 flex items-center text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
+      >
+        <GripVertical size={18} />
+      </button>
+      <div className="flex-1 min-w-0">{children}</div>
+    </Reorder.Item>
   );
 }
 

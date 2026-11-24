@@ -283,6 +283,8 @@ File: `index.tsx` (list + filter + delete), `add.tsx` (`TransactionAdd`, panel i
 
 **Query list**: select `*, transaction_details(*), wallet:wallets!wallet_id(id,name,color), to_wallet:wallets!to_wallet_id(id,name,color), transaction_category:transaction_categories!category_id(id,name,color,icon)` urut `date DESC, created_at DESC, id DESC`. Memakai `useInfiniteQuery`; query key memuat keempat filter, jadi tiap kombinasi filter punya cache sendiri. Saat filter diganti, daftar lama tetap terlihat (diredupkan) sampai data baru datang (`keepPreviousData`).
 
+**Ubah urutan (drag & drop, sejak 2026-11-24)**: tombol ⇅ di ujung kanan baris judul bulan pertama (mis. "November 2026") menyalakan mode urutan; tiap baris mendapat pegangan (grip) dan bisa digeser **di dalam hari yang sama** (`Reorder` dari `motion/react`, satu `Reorder.Group` per hari). Saat dilepas, `planReorder` (`lib/reorder.ts`, logika sama dengan mobile `core/reorder.dart` yang punya tesnya) menghitung `sort_order` baru: biasanya hanya baris yang dipindah. Nilainya ditulis ke cache TanStack (daftar diurutkan ulang di klien `date desc, sort_order desc`) lalu di-`update` ke Supabase; gagal → toast + muat ulang. Tombol mati saat ada pencarian / filter In-Out / filter income (baris di antara dua tetangga tersembunyi), dan hari terakhir yang termuat tidak bisa digeser selama masih ada halaman berikutnya (barisnya mungkin belum lengkap). Butuh kolom `transactions.sort_order` (lihat BACKEND.md).
+
 **Pagination (infinite scroll)**: `IntersectionObserver` (rootMargin 400px) pada elemen sentinel. Satu halaman = `PAGE_SIZE` (30) baris. Tiap request meminta `range(offset, offset + 30)` = 31 baris; baris ke-31 hanya penanda bahwa masih ada halaman berikutnya (tidak ada `count: 'exact'`). Baris digabung dengan dedup berdasarkan `id`.
 
 **Statistik (Income / Expense / Balance)**: satu `useQuery` yang mengambil `type, amount` lalu dijumlahkan di klien; mengikuti filter tipe, bulan & `filterIncomeId`, **tidak** mengikuti kata kunci pencarian. Hanya tampil **dan hanya diambil** jika filter bulan aktif.
@@ -477,6 +479,7 @@ Split bill **tidak punya tipe** (memakai `any`). Skema lengkap tabel ada di [BAC
 - Rentang bulan: `yyyy-MM-01` s.d. `yyyy-MM-<lastDay>` dengan `lastDay = new Date(year, month, 0).getDate()`.
 - Warna tipe: income = emerald, expense = rose, transfer = blue.
 - Warna tema: CSS variables di `styles/theme.css` (`--primary: #059669`). Komentar di file itu: untuk ganti warna cukup fokus ke `primary`, `background`, `card`.
+- Latar semua form field (input, select, textarea): class `bg-field` = variabel `--field` di `theme.css` (light `#f1f5f9` abu muda sejak 2026-11-24, sebelumnya mint `bg-accent/50`; dark tetap `--accent` 50%). Ganti warnanya cukup di variabel itu; field baru pakai `bg-field`, bukan `bg-accent/50`.
 
 ## 11. Masalah yang Sudah Diketahui (wajib dibaca sebelum refactor)
 

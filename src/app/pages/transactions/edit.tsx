@@ -151,7 +151,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
   };
 
   const tabStyle = (t: TransactionType) =>
-    `px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${editType === t
+    `flex-1 sm:flex-none flex justify-center px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${editType === t
       ? t === 'income' ? 'bg-white shadow-sm text-emerald-600'
         : t === 'transfer' ? 'bg-white shadow-sm text-blue-600'
           : 'bg-white shadow-sm text-rose-600'
@@ -166,7 +166,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-card w-full max-w-2xl border border-border shadow-2xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col"
+            className="bg-card w-full max-w-4xl border border-border shadow-2xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col"
           >
             {/* Header */}
             <div className="p-4 border-b border-border flex justify-between items-center bg-accent/30">
@@ -180,7 +180,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
 
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
               {/* Tab Switcher */}
-              <div className="flex p-1 bg-accent rounded-xl w-fit gap-0.5">
+              <div className="flex p-1 bg-accent rounded-xl w-full sm:w-fit gap-0.5">
                 <button type="button" onClick={() => setEditType('expense')} className={tabStyle('expense')}>Expense</button>
                 <button type="button" onClick={() => setEditType('income')} className={tabStyle('income')}>Income</button>
                 <button type="button" onClick={() => setEditType('transfer')} className={tabStyle('transfer')}>
@@ -200,9 +200,20 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                         type="text" inputMode="numeric"
                         value={editAmount.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                         onChange={e => setEditAmount(e.target.value.replace(/\D/g, ''))}
-                        className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-black text-xl outline-none focus:ring-2 ring-primary/20"
+                        className="w-full bg-field border-none rounded-2xl py-3 pl-10 pr-4 font-black text-xl outline-none focus:ring-2 ring-primary/20"
                       />
                     </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-muted-foreground">Description / Notes</label>
+                    <textarea
+                      value={editDescription}
+                      onChange={e => setEditDescription(e.target.value)}
+                      rows={4}
+                      className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
+                    />
                   </div>
 
                   {/* Wallet From */}
@@ -239,7 +250,10 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                       onAdd={async name => addCategory({ name, icon: 'Tag', color: '#64748b', type: editType as 'income' | 'expense' })}
                     />
                   )}
+                </div>
 
+                {/* RIGHT */}
+                <div className="space-y-4">
                   {/* Link to Income — only for expense */}
                   {editType === 'expense' && (
                     <div className="space-y-1.5">
@@ -250,7 +264,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                         <select
                           value={editIncomeMonth}
                           onChange={e => setEditIncomeMonth(e.target.value)}
-                          className="text-xs font-bold bg-accent/50 border-none rounded-lg py-1 px-2 outline-none appearance-none cursor-pointer"
+                          className="text-xs font-bold bg-field border-none rounded-lg py-1 px-2 outline-none appearance-none cursor-pointer"
                         >
                           {monthOptions.map(({ value, label }) => (
                             <option key={value} value={value}>{label}</option>
@@ -260,7 +274,7 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                       <select
                         value={editLinkedIncomeId}
                         onChange={e => setEditLinkedIncomeId(e.target.value)}
-                        className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
+                        className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
                       >
                         <option value="">Not linked</option>
                         {localIncomeSources.map(src => (
@@ -272,24 +286,11 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     </div>
                   )}
 
-                  {editType === 'expense' && (
-                    <PlanLinkFields
-                      planId={editPlanId}
-                      itemId={editPlanItemId}
-                      enabled={!!transaction}
-                      onChange={(p, i) => { setEditPlanId(p); setEditPlanItemId(i); }}
-                      onItemCategory={c => { if (!editCategoryId) setEditCategoryId(c); }}
-                    />
-                  )}
-                </div>
-
-                {/* RIGHT */}
-                <div className="space-y-4">
                   {/* Date */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-muted-foreground">Date</label>
                     <div className="relative group">
-                      <div className="absolute inset-0 bg-accent/50 rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none">
+                      <div className="absolute inset-0 bg-field rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none">
                         {(editDate || '').split('-').reverse().join('/')}
                       </div>
                       <input
@@ -301,16 +302,16 @@ export function TransactionEdit({ transaction, onClose, onSuccess, onDeleteReque
                     </div>
                   </div>
 
-                  {/* Description */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-muted-foreground">Description / Notes</label>
-                    <textarea
-                      value={editDescription}
-                      onChange={e => setEditDescription(e.target.value)}
-                      rows={4}
-                      className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
+                  {/* Plan — only for expense */}
+                  {editType === 'expense' && (
+                    <PlanLinkFields
+                      planId={editPlanId}
+                      itemId={editPlanItemId}
+                      enabled={!!transaction}
+                      onChange={(p, i) => { setEditPlanId(p); setEditPlanItemId(i); }}
+                      onItemCategory={c => { if (!editCategoryId) setEditCategoryId(c); }}
                     />
-                  </div>
+                  )}
                 </div>
               </form>
 

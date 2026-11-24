@@ -125,7 +125,7 @@ export function PlanningAdd({ isOpen, initial, onClose, onSuccess, formatCurrenc
                   <input 
                     type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Bali Vacation, Room Renovation"
-                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                    className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
                   />
                 </div>
                 <div className="space-y-2">
@@ -138,7 +138,7 @@ export function PlanningAdd({ isOpen, initial, onClose, onSuccess, formatCurrenc
                       value={nominalBudget.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} 
                       onChange={(e) => setNominalBudget(e.target.value.replace(/\D/g, ''))}
                       placeholder="Total budget (uses item total if left empty)"
-                      className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                      className="w-full bg-field border-none rounded-2xl py-3 pl-10 pr-4 font-bold outline-none focus:ring-2 ring-primary/20"
                     />
                   </div>
                 </div>
@@ -147,7 +147,7 @@ export function PlanningAdd({ isOpen, initial, onClose, onSuccess, formatCurrenc
                   <input 
                     type="text" value={description} onChange={(e) => setDescription(e.target.value)}
                     placeholder="Additional notes..."
-                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                    className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
                   />
                 </div>
               </div>
@@ -170,7 +170,7 @@ export function PlanningAdd({ isOpen, initial, onClose, onSuccess, formatCurrenc
                           type="text" value={item.name || ''}
                           onChange={(e) => updateItem(index, 'name', e.target.value)}
                           placeholder="Item name (e.g. Flight Ticket)"
-                          className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-bold outline-none"
+                          className="w-full bg-field border-none rounded-xl py-2 px-3 text-sm font-bold outline-none"
                         />
                       </div>
                       {/* Category: gives the item its icon and pre-fills linked expenses */}
@@ -179,7 +179,7 @@ export function PlanningAdd({ isOpen, initial, onClose, onSuccess, formatCurrenc
                           value={item.category_id || ''}
                           onChange={(e) => updateItem(index, 'category_id', e.target.value || null)}
                           aria-label="Item category"
-                          className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-bold outline-none appearance-none truncate"
+                          className="w-full bg-field border-none rounded-xl py-2 px-3 text-sm font-bold outline-none appearance-none truncate"
                         >
                           <option value="">No category</option>
                           {expenseCategories.map(c => (
@@ -194,7 +194,7 @@ export function PlanningAdd({ isOpen, initial, onClose, onSuccess, formatCurrenc
                           value={item.estimate?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') || ''}
                           onChange={(e) => updateItem(index, 'estimate', e.target.value.replace(/\D/g, ''))}
                           placeholder="0"
-                          className="w-full bg-accent/50 border-none rounded-xl py-2 px-3 text-sm font-black outline-none pl-3"
+                          className="w-full bg-field border-none rounded-xl py-2 px-3 text-sm font-black outline-none pl-3"
                         />
                       </div>
                       <button type="button" onClick={() => removeItem(index)} className="p-2 text-muted-foreground hover:text-rose-600 transition-colors">

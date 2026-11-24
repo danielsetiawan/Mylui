@@ -69,7 +69,7 @@ const ModifierInput = ({
         type="text" inputMode="numeric" value={value || ''} placeholder="0"
         onChange={(e) => onValueChange(digitsOnly(e.target.value))}
         aria-label={label}
-        className="w-full bg-accent/30 border-none rounded-lg pl-9 pr-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-primary/20 tabular-nums"
+        className="w-full bg-field border-none rounded-lg pl-9 pr-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-primary/20 tabular-nums"
       />
     </div>
   </div>
@@ -86,7 +86,7 @@ const FeeInput = ({ label, value, onChange }: { label: string; value: number; on
         type="text" inputMode="numeric" value={value || ''} placeholder="0"
         onChange={(e) => onChange(digitsOnly(e.target.value))}
         aria-label={label}
-        className="w-full bg-accent/30 border-none rounded-lg pl-9 pr-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-primary/20 tabular-nums"
+        className="w-full bg-field border-none rounded-lg pl-9 pr-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-primary/20 tabular-nums"
       />
     </div>
   </div>
@@ -335,7 +335,7 @@ export function SplitBillForm({ bill, initialItems, initialPeople, onClose }: Sp
               <input
                 id="bill-title"
                 type="text" value={title} onChange={e => setTitle(e.target.value)}
-                className="w-full bg-accent/50 border border-border/50 rounded-2xl py-2 px-4 font-bold outline-none focus:ring-2 ring-primary/20 transition-all placeholder:opacity-50"
+                className="w-full bg-field border border-border/50 rounded-2xl py-2 px-4 font-bold outline-none focus:ring-2 ring-primary/20 transition-all placeholder:opacity-50"
                 placeholder="e.g. Dinner with Friends"
               />
             </div>
@@ -409,7 +409,7 @@ export function SplitBillForm({ bill, initialItems, initialPeople, onClose }: Sp
                     <input
                       type="text" value={newPersonName} onChange={e => setNewPersonName(e.target.value)}
                       placeholder="Add person" aria-label="New person name"
-                      className="w-36 bg-accent/40 rounded-full py-1.5 pl-8 pr-3 text-sm font-bold outline-none focus:ring-2 ring-primary/20 placeholder:font-medium placeholder:text-muted-foreground/60"
+                      className="w-36 bg-field rounded-full py-1.5 pl-8 pr-3 text-sm font-bold outline-none focus:ring-2 ring-primary/20 placeholder:font-medium placeholder:text-muted-foreground/60"
                     />
                   </div>
                 </form>

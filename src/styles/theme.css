@@ -25,6 +25,8 @@
   --border: rgba(0, 0, 0, 0.1);
   --input: transparent;
   --input-background: #f3f3f5;
+  /* Background of every form field (class bg-field) */
+  --field: #f1f5f9;
   --switch-background: #cbced4;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
@@ -83,6 +85,7 @@
   --border: #101921;
   --input: #2B3A4A;
   --input-background: #2B3A4A;
+  --field: rgb(28 39 51 / 0.5); /* --accent at 50% */
   --switch-background: #2B3A4A;
   --ring: #059669;
   --font-weight-medium: 500;
@@ -122,6 +125,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-input-background: var(--input-background);
+  --color-field: var(--field);
   --color-switch-background: var(--switch-background);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);

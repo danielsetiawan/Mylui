@@ -173,7 +173,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
   };
 
   const tabStyle = (t: TabType) =>
-    `px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${tab === t
+    `flex-1 sm:flex-none flex justify-center px-3 sm:px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${tab === t
       ? t === 'income' ? 'bg-white shadow-sm text-emerald-600'
         : t === 'transfer' ? 'bg-white shadow-sm text-blue-600'
           : 'bg-white shadow-sm text-rose-600'
@@ -194,7 +194,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
             </h3>
 
             {/* Tab Switcher */}
-            <div className="flex p-1 bg-accent rounded-xl w-fit mb-6 gap-0.5">
+            <div className="flex p-1 bg-accent rounded-xl w-full sm:w-fit mb-6 gap-0.5">
               <button type="button" onClick={() => setTab('expense')} className={tabStyle('expense')}>Expense</button>
               <button type="button" onClick={() => setTab('income')} className={tabStyle('income')}>Income</button>
               <button type="button" onClick={() => setTab('transfer')} className={tabStyle('transfer')}>
@@ -215,9 +215,21 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                       value={amount.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       onChange={e => setAmount(e.target.value.replace(/\D/g, ''))}
                       placeholder="0"
-                      className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-10 pr-4 font-black text-xl outline-none focus:ring-2 ring-primary/20"
+                      className="w-full bg-field border-none rounded-2xl py-3 pl-10 pr-4 font-black text-xl outline-none focus:ring-2 ring-primary/20"
                     />
                   </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted-foreground">Description / Notes</label>
+                  <textarea
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    rows={3}
+                    placeholder={tab === 'transfer' ? 'Transfer note (optional)' : 'Additional note (optional)'}
+                    className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
+                  />
                 </div>
 
                 {/* Wallet From */}
@@ -255,7 +267,10 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                     onAdd={async (name) => addCategory({ name, icon: 'Tag', color: '#64748b', type: tab })}
                   />
                 )}
+              </div>
 
+              {/* --- RIGHT COLUMN --- */}
+              <div className="space-y-4">
                 {/* Link to Income — only for expense */}
                 {tab === 'expense' && (
                   <div className="space-y-1.5">
@@ -272,7 +287,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                           setLinkTouched(true);
                         }}
                         aria-label="Income month"
-                        className="text-xs font-bold bg-accent/50 border-none rounded-lg py-1 px-2 outline-none appearance-none cursor-pointer"
+                        className="text-xs font-bold bg-field border-none rounded-lg py-1 px-2 outline-none appearance-none cursor-pointer"
                       >
                         {monthOptions.map(({ value, label }) => (
                           <option key={value} value={value}>{label}</option>
@@ -283,7 +298,7 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                       value={linkedIncomeId}
                       onChange={e => { setLinkedIncomeId(e.target.value); setLinkTouched(true); }}
                       aria-label="Linked income"
-                      className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
+                      className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
                     >
                       <option value="">Not linked</option>
                       {localIncomeSources.map(src => (
@@ -295,24 +310,11 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                   </div>
                 )}
 
-                {tab === 'expense' && (
-                  <PlanLinkFields
-                    planId={planId}
-                    itemId={planItemId}
-                    enabled={isOpen}
-                    onChange={(p, i) => { setPlanId(p); setPlanItemId(i); }}
-                    onItemCategory={c => { if (!categoryId || categoryGuessed) { setCategoryId(c); setCategoryGuessed(false); } }}
-                  />
-                )}
-              </div>
-
-              {/* --- RIGHT COLUMN --- */}
-              <div className="space-y-4">
                 {/* Date */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground">Date</label>
                   <div className="relative group">
-                    <div className="absolute inset-0 bg-accent/50 rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none">
+                    <div className="absolute inset-0 bg-field rounded-2xl py-3 px-4 font-bold flex items-center pointer-events-none">
                       {date.split('-').reverse().join('/')}
                     </div>
                     <input
@@ -324,17 +326,16 @@ export function TransactionAdd({ isOpen, onClose, onSuccess, formatCurrency }: P
                   </div>
                 </div>
 
-                {/* Description */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted-foreground">Description / Notes</label>
-                  <textarea
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    rows={3}
-                    placeholder={tab === 'transfer' ? 'Transfer note (optional)' : 'Additional note (optional)'}
-                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none"
+                {/* Plan — only for expense */}
+                {tab === 'expense' && (
+                  <PlanLinkFields
+                    planId={planId}
+                    itemId={planItemId}
+                    enabled={isOpen}
+                    onChange={(p, i) => { setPlanId(p); setPlanItemId(i); }}
+                    onItemCategory={c => { if (!categoryId || categoryGuessed) { setCategoryId(c); setCategoryGuessed(false); } }}
                   />
-                </div>
+                )}
 
                 {/* Details Toggle — only for income/expense */}
                 {tab !== 'transfer' && (

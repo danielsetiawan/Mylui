@@ -43,6 +43,8 @@ export interface Transaction {
   budget_plan_id?: string | null;       // Planning realization (see supabase/migrations/20261122_plan_realization.sql)
   budget_plan_item_id?: string | null;
   created_at?: string;
+  /** Position inside its day (bigger = higher); changed by dragging in Activity */
+  sort_order?: number;
   transaction_details?: TransactionDetail[];
   // Joined data
   wallet?: Wallet;

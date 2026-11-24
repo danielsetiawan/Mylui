@@ -118,7 +118,7 @@ export function Login() {
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Your name"
-                        className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-11 pr-4 font-medium outline-none focus:ring-2 ring-primary/20"
+                        className="w-full bg-field border-none rounded-2xl py-3 pl-11 pr-4 font-medium outline-none focus:ring-2 ring-primary/20"
                       />
                     </div>
                   </div>
@@ -136,7 +136,7 @@ export function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-11 pr-4 font-medium outline-none focus:ring-2 ring-primary/20"
+                  className="w-full bg-field border-none rounded-2xl py-3 pl-11 pr-4 font-medium outline-none focus:ring-2 ring-primary/20"
                 />
               </div>
             </div>
@@ -151,7 +151,7 @@ export function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={mode === 'register' ? 'At least 8 characters' : '••••••••'}
                   required
-                  className="w-full bg-accent/50 border-none rounded-2xl py-3 pl-11 pr-11 font-medium outline-none focus:ring-2 ring-primary/20"
+                  className="w-full bg-field border-none rounded-2xl py-3 pl-11 pr-11 font-medium outline-none focus:ring-2 ring-primary/20"
                 />
                 <button
                   type="button"

@@ -242,7 +242,7 @@ export function Notes() {
                   <input
                     type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                     placeholder="Note Title..."
-                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                    className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
                     autoFocus
                   />
                 </div>
@@ -251,7 +251,7 @@ export function Notes() {
                   <textarea
                     value={content} onChange={(e) => setContent(e.target.value)}
                     placeholder="Write your note here..."
-                    className="flex-1 w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none min-h-[300px]"
+                    className="flex-1 w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 resize-none min-h-[300px]"
                   />
                 </div>
                 <button type="submit" className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-black text-lg transition-all hover:bg-primary/90">

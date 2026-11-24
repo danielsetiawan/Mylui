@@ -294,7 +294,7 @@ export function Layout() {
                     value={newFullName}
                     onChange={(e) => setNewFullName(e.target.value)}
                     placeholder="Enter your name"
-                    className="w-full bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
+                    className="w-full bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20"
                     autoFocus
                   />
                 </div>

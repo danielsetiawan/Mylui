@@ -33,7 +33,7 @@ export function PlanLinkFields({ planId, itemId, onChange, onItemCategory, enabl
           value={planId}
           onChange={e => onChange(e.target.value, '')}
           aria-label="Plan"
-          className="w-full min-w-0 bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none truncate"
+          className="w-full min-w-0 bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none truncate"
         >
           <option value="">No plan</option>
           {options.map(p => (
@@ -52,7 +52,7 @@ export function PlanLinkFields({ planId, itemId, onChange, onItemCategory, enabl
               if (categoryId && onItemCategory) onItemCategory(categoryId);
             }}
             aria-label="Plan item"
-            className="w-full min-w-0 bg-accent/50 border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none truncate"
+            className="w-full min-w-0 bg-field border-none rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none truncate"
           >
             <option value="">Any item</option>
             {items.map(i => (

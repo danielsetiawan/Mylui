@@ -228,7 +228,7 @@ export function Init() {
             <select
               value={selectedUserId}
               onChange={e => setSelectedUserId(e.target.value)}
-              className="w-full bg-accent/50 border border-border/50 rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
+              className="w-full bg-field border border-border/50 rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
             >
               <option value="">-- Choose User --</option>
               {users.map(u => (
@@ -243,7 +243,7 @@ export function Init() {
               <select
                 value={selectedMonth}
                 onChange={e => setSelectedMonth(Number(e.target.value))}
-                className="flex-1 bg-accent/50 border border-border/50 rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
+                className="flex-1 bg-field border border-border/50 rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
               >
                 {MONTHS.map((m, i) => (
                   <option key={i + 1} value={i + 1}>{m}</option>
@@ -252,7 +252,7 @@ export function Init() {
               <select
                 value={selectedYear}
                 onChange={e => setSelectedYear(Number(e.target.value))}
-                className="w-32 bg-accent/50 border border-border/50 rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
+                className="w-32 bg-field border border-border/50 rounded-2xl py-3 px-4 font-bold outline-none focus:ring-2 ring-primary/20 appearance-none"
               >
                 {YEARS.map(y => (
                   <option key={y} value={y}>{y}</option>
@@ -270,7 +270,7 @@ export function Init() {
             onChange={e => setTextInput(e.target.value)}
             placeholder={`53k spotinet\n192k token\n600k shopipai(bayar wifi 291k, 26 terigu eskrim, 14k minyak)\n1100k shopipai(855k sepatu & sandal adidas, 26k insole, 74k pop corn + cocacola)`}
             rows={10}
-            className="w-full bg-accent/50 border border-border/50 rounded-2xl py-3 px-4 font-mono text-sm outline-none focus:ring-2 ring-primary/20 resize-y leading-relaxed"
+            className="w-full bg-field border border-border/50 rounded-2xl py-3 px-4 font-mono text-sm outline-none focus:ring-2 ring-primary/20 resize-y leading-relaxed"
           />
         </div>
 

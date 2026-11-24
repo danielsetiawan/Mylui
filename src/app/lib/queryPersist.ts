@@ -25,7 +25,7 @@ export const MAX_AGE = 24 * 60 * 60 * 1000;
  * Bump when the shape of a saved query changes (select columns, returned
  * object), so old saved data with the wrong shape is never shown.
  */
-export const CACHE_VERSION = '2026-11-23';
+export const CACHE_VERSION = '2026-11-24';
 
 const isDefaultList = (filters: unknown) =>
   typeof filters === 'object' && filters !== null && !(filters as Record<string, string>).search;
